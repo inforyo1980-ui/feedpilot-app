@@ -198,17 +198,82 @@ export function OptimizationHistoryPanel(props: {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
                   {item.source} · {item.status}
                 </div>
 
-                <div style={{ fontSize: 13, color: "#111827" }}>
-                  {formatHistoryScoreLine(item)}
-                </div>
+                <HistoryScoreGrid item={item} />
               </div>
             ))
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function HistoryScoreGrid({ item }: { item: HistoryItem }) {
+  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
+  const storedDelta = isFiniteNumber(item.impactDelta) ? item.impactDelta : null;
+  const delta = before !== null && after !== null ? storedDelta ?? after - before : null;
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
+        }}
+      >
+        <HistoryMetric label="Before" value={before} unavailableLabel="Unavailable" />
+        <HistoryMetric label="After" value={after} unavailableLabel="Unavailable" />
+        <HistoryMetric
+          label="Lift"
+          value={delta}
+          unavailableLabel="Unavailable"
+          signed
+        />
+      </div>
+
+      {before === null ? (
+        <div style={{ marginTop: 8, color: "#9ca3af", fontSize: 11 }}>
+          Legacy data · the original before score was not stored.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function HistoryMetric(props: {
+  label: string;
+  value: number | null;
+  unavailableLabel: string;
+  signed?: boolean;
+}) {
+  const { label, value, unavailableLabel, signed = false } = props;
+  const formattedValue =
+    value === null ? unavailableLabel : `${signed && value > 0 ? "+" : ""}${value}`;
+
+  return (
+    <div
+      style={{
+        background: "#f9fafb",
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: "9px 10px",
+      }}
+    >
+      <div style={{ color: "#6b7280", fontSize: 11, marginBottom: 3 }}>{label}</div>
+      <div
+        style={{
+          color: value === null ? "#9ca3af" : "#111827",
+          fontSize: 14,
+          fontWeight: 700,
+        }}
+      >
+        {formattedValue}
       </div>
     </div>
   );
@@ -230,26 +295,6 @@ function MetricCard(props: { label: string; value: number }) {
       <div style={{ fontSize: 24, fontWeight: 800 }}>{props.value}</div>
     </div>
   );
-}
-
-function formatHistoryScoreLine(item: HistoryItem) {
-  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
-  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
-  const storedDelta = isFiniteNumber(item.impactDelta) ? item.impactDelta : null;
-
-  if (before === null) {
-    return after === null
-      ? "Legacy record · score unavailable"
-      : `Score after: ${after} · Legacy record (before score unavailable)`;
-  }
-
-  if (after === null) {
-    return `Score before: ${before} · after score unavailable`;
-  }
-
-  const delta = storedDelta ?? after - before;
-  const deltaSign = delta > 0 ? "+" : "";
-  return `${before} → ${after} · Δ ${deltaSign}${delta}`;
 }
 
 function display(value: number | null | undefined) {
