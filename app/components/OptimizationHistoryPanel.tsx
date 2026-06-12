@@ -67,23 +67,24 @@ export function OptimizationHistoryPanel(props: {
           </div>
 
           <div
-  style={{
-    background: "#f9fafb",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 14,
-    lineHeight: 1.7,
-    marginBottom: 16,
-  }}
->
-  FeedPilot applied {weeklyInsight.appliedCount} optimizations in the last {weeklyInsight.windowDays} days.{" "}
-  {weeklyInsight.appliedCount > 0
-    ? `${weeklyInsight.improvedProducts} products improved with measurable SEO gains, generating a total impact of ${
-        weeklyInsight.totalImpactDelta >= 0 ? "+" : ""
-      }${weeklyInsight.totalImpactDelta}.`
-    : "System is monitoring your catalog for new opportunities."}{" "}
-  Continuous improvements are building your catalog performance over time.
-</div>
+            style={{
+              background: "#f9fafb",
+              borderRadius: 12,
+              padding: 14,
+              fontSize: 14,
+              lineHeight: 1.7,
+              marginBottom: 16,
+            }}
+          >
+            FeedPilot applied {weeklyInsight.appliedCount} optimizations in the last{" "}
+            {weeklyInsight.windowDays} days.{" "}
+            {weeklyInsight.appliedCount > 0
+              ? `${weeklyInsight.improvedProducts} products improved with measurable SEO gains, generating a total impact of ${
+                  weeklyInsight.totalImpactDelta >= 0 ? "+" : ""
+                }${weeklyInsight.totalImpactDelta}.`
+              : "System is monitoring your catalog for new opportunities."}{" "}
+            Continuous improvements are building your catalog performance over time.
+          </div>
 
           <div
             style={{
@@ -202,8 +203,7 @@ export function OptimizationHistoryPanel(props: {
                 </div>
 
                 <div style={{ fontSize: 13, color: "#111827" }}>
-                  {display(item.seoScoreBefore)} → {display(item.seoScoreAfter)}
-                  {" · "}Δ {display(item.impactDelta)}
+                  {formatHistoryScoreLine(item)}
                 </div>
               </div>
             ))
@@ -232,8 +232,32 @@ function MetricCard(props: { label: string; value: number }) {
   );
 }
 
+function formatHistoryScoreLine(item: HistoryItem) {
+  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
+  const storedDelta = isFiniteNumber(item.impactDelta) ? item.impactDelta : null;
+
+  if (before === null) {
+    return after === null
+      ? "Legacy record · score unavailable"
+      : `Score after: ${after} · Legacy record (before score unavailable)`;
+  }
+
+  if (after === null) {
+    return `Score before: ${before} · after score unavailable`;
+  }
+
+  const delta = storedDelta ?? after - before;
+  const deltaSign = delta > 0 ? "+" : "";
+  return `${before} → ${after} · Δ ${deltaSign}${delta}`;
+}
+
 function display(value: number | null | undefined) {
-  return typeof value === "number" ? value : "-";
+  return isFiniteNumber(value) ? value : "-";
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function formatDate(value: string) {
