@@ -7,6 +7,7 @@ type OptimizeProductArgs = {
   productId: string;
   title: string;
   description: string;
+  seoScoreBefore?: number | null;
   source: "manual" | "automation";
   decisionMode?: string;
 };
@@ -107,19 +108,23 @@ Description: ${description}
 
   const titleAfter = parsed.title || title;
   const descriptionAfter = parsed.description || description;
+  const resolvedSeoScoreBefore =
+    typeof seoScoreBefore === "number" && Number.isFinite(seoScoreBefore)
+      ? seoScoreBefore
+      : calculateSeoScore(title, description);
   const seoScoreAfter = calculateSeoScore(titleAfter, descriptionAfter);
 console.log("SEO SCORE CHECK:", {
-  seoScoreBefore,
+  seoScoreBefore: resolvedSeoScoreBefore,
   seoScoreAfter,
 });
 
-if (seoScoreAfter <= seoScoreBefore) {
+if (seoScoreAfter <= resolvedSeoScoreBefore) {
   console.log("⛔ SKIP: no improvement");
 
   return {
     skipped: true,
     productId,
-    seoScoreBefore,
+    seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
   };
 }
@@ -131,7 +136,7 @@ if (seoScoreAfter <= seoScoreBefore) {
     titleAfter,
     descriptionBefore: description,
     descriptionAfter,
-    seoScoreBefore,
+    seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
     whyText: parsed.impact_summary || "",
     outcomeText: parsed.impact_summary || "",
@@ -149,7 +154,7 @@ if (seoScoreAfter <= seoScoreBefore) {
     productId,
     originalTitle: title,
     appliedTitle: titleAfter,
-    seoScoreBefore,
+    seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
   };
 }
