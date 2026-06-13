@@ -18,7 +18,6 @@ import {
 import { applyOptimizedTitleAndRecord } from "../services/optimization-apply.server";
 import { OptimizationHistoryPanel } from "../components/OptimizationHistoryPanel";
 import { StatCard } from "../components/StatCard";
-import { TopOpportunityCard } from "../components/TopOpportunityCard";
 import { optimizeProductWithAI } from "../services/optimizer.server";
 const FREE_OPTIMIZATION_LIMIT = 2;
 const FREE_OPTIMIZATION_WINDOW_DAYS = 7;
@@ -342,12 +341,12 @@ function buildHeroStatusLabel(plan: "free" | "starter" | "growth") {
 
 function buildHeroSubtitleByPlan(plan: "free" | "starter" | "growth") {
   if (plan === "growth") {
-    return "FeedPilot is actively optimizing your catalog in the background, preventing weak listings from quietly losing visibility and sales.";
+    return "FeedPilot is monitoring and improving your catalog every week.";
   }
   if (plan === "starter") {
-    return "You can fix weak listings manually, but performance can still drop between optimizations.";
+    return "Manual optimization is active. Automation is still off.";
   }
-  return "You can already see which products are underperforming. Without fixing them, they will continue losing visibility and potential sales.";
+  return "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility.";
 }
 
 function getImpactLevelTone(label: string) {
@@ -639,61 +638,8 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    console.log("AUTO CHECK EFFECT START", plan);
-     if (plan !== "growth") return;
+    if (plan !== "growth") return;
     runGrowthAutoRun("auto");
-    return;
-
-    let cancelled = false;
-
-    const runAutoCheck = async () => {
-      try {
-        console.log("AUTO RUN FETCH START");
-
-const res = await fetch("/app/auto-run", {
-  method: "GET",
-  credentials: "same-origin",
-});
-
-console.log("AUTO RUN RESPONSE", res.status, res.url);
-
-const text = await res.text();
-
-let data;
-try {
-  data = JSON.parse(text);
-} catch {
-  console.error("AUTO RUN NON-JSON RESPONSE:", text.slice(0, 500));
-  return;
-}
-
-console.log("AUTO RUN DATA", data);
-
-if (cancelled) return;
-
-if (data?.result?.ran && data?.result?.successCount > 0) {
-  const successCount = data.result.successCount;
-  const message = buildGrowthSuccessText(successCount);
-  setToast({ message, type: "success" });
-  setLastSuccessNotice(`✁E${message}. View the result in history below.`);
-  window.sessionStorage.setItem(
-    "feedpilotLastSuccess",
-    `✁E${message}. View the result in history below.`,
-  );
-  setTimeout(() => {
-    window.location.reload();
-  }, 1200);
-}
-      } catch (error) {
-        console.error("AUTO RUN FETCH ERROR:", error);
-      }
-    };
-
-    runAutoCheck();
-
-    return () => {
-      cancelled = true;
-    };
   }, [plan]);
 
   const topOpportunities = useMemo(() => {
@@ -729,7 +675,6 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
   }, [snapshot]);
 
   const appliedThisWeek = weeklyInsight?.appliedCount ?? 0;
-  const impactThisWeek = weeklyInsight?.totalImpactDelta ?? 0;
   const automationCount = weeklyInsight?.automatedCount ?? 0;
 
   const handleOptimizeAll = async () => {
@@ -739,7 +684,7 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
           ? "Free limit reached"
           : "Upgrade to optimize your catalog",
         freeLimitReached
-          ? "You’ve used your free optimization allowance. Upgrade to Starter to continue optimizing products, or move to Growth to automate ongoing improvements."
+          ? "You've used your free optimization allowance. Upgrade to Starter to continue optimizing products, or move to Growth to automate ongoing improvements."
           : "Free is for discovery. Upgrade to Starter to optimize more products, or choose Growth to turn optimization into an automatic weekly system.",
         freeLimitReached ? "Upgrade to Starter" : "See paid plans",
         "batch_limit",
@@ -758,96 +703,96 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
     }
 
     await runGrowthAutoRun("manual");
-    return;
+  };
 
-    setDone(false);
-    setSuccessCount(0);
-    setEmptyRunMessage("");
+  const renderCompactOpportunityCard = (
+    product: any,
+    index: number,
+    onOptimize: (product: any) => void | Promise<void>,
+  ) => {
+    const isCritical = product?.severity === "critical";
 
-    const concurrency = 3;
-    const queue = snapshot.products.filter(
-      (p: ProductScanResult) => p.optimizationReasons.length > 0,
+    return (
+      <div
+        key={product.id}
+        style={{
+          padding: "16px 0",
+          borderBottom: "1px solid #eee",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 14,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 260 }}>
+            {isCritical && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: "#fff1f0",
+                  border: "1px solid #ffa39e",
+                  color: "#cf1322",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
+                Critical
+              </div>
+            )}
+
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
+              {index + 1}. {product.title}
+            </div>
+
+            <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
+              SEO Score: <b style={{ color: "#111" }}>{product.seoScore}</b>
+            </div>
+
+            <div style={{ marginTop: 6, color: "#a00", marginBottom: 8 }}>
+              <b>Impact:</b> Low visibility risk
+            </div>
+
+            <div style={{ marginTop: 8, color: "#0a7" }}>
+              <b>Recommended action:</b> Improve title, keywords, and
+              description quality.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={optimizingId === product.id}
+            style={{
+              marginTop: 4,
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: isCritical ? "1px solid #ffa39e" : "1px solid #ccc",
+              background:
+                optimizingId === product.id
+                  ? "#f3f3f3"
+                  : isCritical
+                    ? "#fff1f0"
+                    : "#fff",
+              cursor: optimizingId === product.id ? "not-allowed" : "pointer",
+              opacity: optimizingId === product.id ? 0.7 : 1,
+              fontWeight: 700,
+              color: isCritical ? "#a8071a" : "#111",
+            }}
+            onClick={() => onOptimize(product)}
+          >
+            {optimizingId === product.id ? "Improving..." : "Improve Visibility"}
+          </button>
+        </div>
+      </div>
     );
-
-    if (queue.length === 0) {
-      setEmptyRunMessage(`✁EYour catalog is fully optimized.
-No immediate action needed.
-
-FeedPilot is actively monitoring your store.
-Next automatic check will run based on your schedule.`);
-      return;
-    }
-
-    let completed = 0;
-    let localSuccessCount = 0;
-    let redirected = false;
-
-    setLoading(true);
-    setDone(false);
-    setProgress(0);
-    setSuccessCount(0);
-
-    try {
-      for (let i = 0; i < queue.length; i += concurrency) {
-        if (redirected) break;
-
-        const batch = queue.slice(i, i + concurrency);
-
-        await Promise.all(
-          batch.map(async (product) => {
-            if (redirected) return;
-
-            try {
-              const formData = new FormData();
-              formData.append("title", product.title);
-              formData.append("productId", product.id);
-              formData.append("description", product.descriptionHtml || "");
-
-              const response = await fetch("?index", {
-                method: "POST",
-                body: formData,
-              });
-
-              if (response.status === 403) {
-                redirected = true;
-
-                setToast({ message: "Free limit reached. Redirecting to upgrade...", type: "info" });
-                setTimeout(() => {
-                  goToUpgrade("batch_limit");
-                }, 500);
-                return;
-              }
-
-              if (response.ok) {
-                localSuccessCount += 1;
-              } else {
-                const errorText = await response.text();
-                console.error(
-                  "Batch optimize failed:",
-                  response.status,
-                  errorText,
-                );
-              }
-            } catch (error) {
-              console.error("Batch item failed:", error);
-            } finally {
-              completed += 1;
-              setProgress(completed);
-            }
-          }),
-        );
-      }
-
-      if (!redirected) {
-        setSuccessCount(localSuccessCount);
-        setDone(true);
-      }
-    } catch (error) {
-      console.error("Batch optimization crashed:", error);
-    } finally {
-      setLoading(false);
-      setProgress(0);
-    }
   };
 
   const growthAutoRunTone = growthAutoRunStatus
@@ -916,8 +861,8 @@ Next automatic check will run based on your schedule.`);
         >
           {criticalCount > 0
             ? criticalCount === 1
-              ? "You’re losing visibility on 1 product"
-              : `You’re losing visibility on ${criticalCount} products`
+              ? "You're losing visibility on 1 product"
+              : `You're losing visibility on ${criticalCount} products`
             : "Your catalog still has opportunities to improve"}
         </h1>
 
@@ -952,53 +897,54 @@ Next automatic check will run based on your schedule.`);
           }}
         >
           <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 10px",
-                borderRadius: 999,
-                marginBottom: 12,
-                background: theme.statusBg,
-                border: `1px solid ${theme.statusBorder}`,
-                color: theme.statusText,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              <span>?</span>
-              <span>{buildHeroStatusLabel(plan)}</span>
-            </div>
+            {plan !== "growth" && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  marginBottom: 12,
+                  background: theme.statusBg,
+                  border: `1px solid ${theme.statusBorder}`,
+                  color: theme.statusText,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                <span>{buildHeroStatusLabel(plan)}</span>
+              </div>
+            )}
 
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
   {plan === "growth"
-  ? "Your catalog is being optimized automatically every week."
+  ? "Automation is active"
   : plan === "starter"
-  ? "You're fixing products, but not fast enough."
-  : "Stop Losing Visibility. Start Optimizing Automatically."}
+  ? "Manual optimization is active"
+  : "Start improving product visibility"}
 </div>
 
             <div style={{ fontSize: 14, color: "#666", marginBottom: 14 }}>
   {plan === "growth"
-  ? "FeedPilot is actively scanning your catalog, fixing weak listings, and preventing visibility loss  Ewithout any manual work."
+  ? "FeedPilot is monitoring and improving your catalog every week."
   : plan === "starter"
-  ? "You’ve started improving your listings manually  Ebut new issues keep appearing. Without automation, optimization becomes a constant task."
-  : "FeedPilot keeps detecting weak listings, helping you improve them now, and turning optimization into an ongoing system when you automate."}
+  ? "Optimize weak listings manually now, then move to Growth when you want the work automated."
+  : "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility."}
 </div>
-            <div
-  style={{
-    color: "#b91c1c",
-    fontWeight: 600,
-    marginTop: 8,
-  }}
->
-  {plan === "growth"
-  ? "Your store is protected. FeedPilot is continuously monitoring and improving your product visibility."
-  : plan === "starter"
-  ? "You’re doing the work manually  Ebut new issues will continue to appear every week."
-  : "Without automation, new issues will keep appearing  Eand your visibility will continue to drop every week."}
-</div>
+            {plan !== "growth" && (
+              <div
+                style={{
+                  color: "#b91c1c",
+                  fontWeight: 600,
+                  marginTop: 8,
+                }}
+              >
+                {plan === "starter"
+                  ? "Automation is still off."
+                  : "Free helps you prove the value before upgrading."}
+              </div>
+            )}
             <div
               style={{
                 display: "flex",
@@ -1022,7 +968,7 @@ Next automatic check will run based on your schedule.`);
         );
 
         if (queue.length === 0) {
-          setEmptyRunMessage(`✁EYour catalog is stable.
+          setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
           return;
         }
@@ -1123,7 +1069,7 @@ No immediate manual action needed right now.`);
     );
 
     if (queue.length === 0) {
-      setEmptyRunMessage(`✁EYour catalog is stable.
+      setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
       return;
     }
@@ -1148,10 +1094,10 @@ No immediate manual action needed right now.`);
         const successCount = 1;
         const message = buildStarterSuccessText(successCount);
         setToast({ message, type: "success" });
-        setLastSuccessNotice(`✁E${message}. View the result in history below.`);
+        setLastSuccessNotice(`${message}. View the result in history below.`);
         window.sessionStorage.setItem(
           "feedpilotLastSuccess",
-          `✁E${message}. View the result in history below.`,
+          `${message}. View the result in history below.`,
         );
         setTimeout(() => window.location.reload(), 1200);
       } else {
@@ -1257,36 +1203,19 @@ setTimeout(() => setToast(null), 2000);
     >
       Manage Plan
     </button>
-<div
-    style={{
-      marginTop: 8,
-      padding: "10px 14px",
-      borderRadius: 10,
-      background: "#ecfdf5",
-      border: "1px solid #6ee7b7",
-      color: "#065f46",
-      fontWeight: 700,
-      fontSize: 14,
-    }}
-  >
-    Automation active · Your catalog is being optimized continuously
-  </div>
   </>
 )}
             </div>
 
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
-  {plan === "growth"
-    ? "FeedPilot is actively monitoring and improving your catalog. New optimization opportunities are detected and applied automatically based on your rules."
-    : plan === "starter"
-      ? "Manual optimization is active, but new issues keep appearing every week. Upgrade to Growth to automatically fix them before they impact your traffic."
-      : freeLimitReached
-  ? `You’ve fixed your first visibility issues  Ebut more products are still underperforming.
-
-Free plan allows ${FREE_OPTIMIZATION_LIMIT} optimizations every ${FREE_OPTIMIZATION_WINDOW_DAYS} days.
-Upgrade to continue improving your catalog now.`
-        : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade to optimize your full catalog and turn this into an ongoing system.`}
-</div>
+          {plan !== "growth" && (
+            <div style={{ fontSize: 13, color: "#6b7280" }}>
+              {plan === "starter"
+                ? "Manual optimization is active. Automation is still off."
+                : freeLimitReached
+                  ? `You have used your free optimization allowance. Upgrade to keep improving your catalog.`
+                  : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade to optimize your full catalog and turn this into an ongoing system.`}
+            </div>
+          )}
           </div>
 
           <div
@@ -1314,46 +1243,24 @@ Upgrade to continue improving your catalog now.`
 
             <div
               style={{
-                fontSize: 13,
-                color: "#666",
-                marginBottom: 10,
-                lineHeight: 1.7,
-              }}
-            >
-              {plan === "growth"
-                ? "FeedPilot is continuously scanning and improving your catalog without manual work."
-                : plan === "starter"
-                  ? "Automation is locked on Starter. You can optimize manually, but FeedPilot will not keep working in the background."
-                  : "Automation is locked on Free. Weak listings can continue losing visibility until you upgrade."}
-            </div>
-
-            <div style={{ fontSize: 13, lineHeight: 1.9, color: "#111" }}>
-              <div>• Weekly scan system</div>
-              <div>• Weak listings detection</div>
-              <div>• Continuous optimization loop</div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                fontSize: 12,
+                fontSize: 18,
                 color:
                   plan === "growth"
-                    ? STATUS_THEME.growth.accent
+                    ? "#111"
                     : plan === "starter"
                       ? STATUS_THEME.starter.accent
-                      : "#b45309",
+                      : "#6b7280",
                 fontWeight: 700,
               }}
             >
-              {plan === "growth"
-                ? automationCount > 0
-                  ? `Active · Automatically improved ${automationCount} products`
-                  : "Active · Monitoring and waiting for new optimization triggers"
-                : plan === "starter"
-                  ? "Locked · Upgrade to Growth to enable automatic runs"
-                  : "Locked · Paid plan required for automation"}
+              {plan === "growth" ? "Active" : plan === "starter" ? "Locked" : "Locked"}
             </div>
+            {plan === "growth" && automationCount > 0 && (
+              <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
+                Improved {automationCount}{" "}
+                {pluralize(automationCount, "product", "products")} this week
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1425,8 +1332,8 @@ Upgrade to continue improving your catalog now.`
           }}
         >
           {successCount > 0
-            ? `✁EBatch optimization completed! Optimized ${successCount} products.`
-            : "⚠ Batch run finished, but no products were optimized."}
+            ? `Batch optimization completed. Optimized ${successCount} products.`
+            : "Batch run finished, but no products were optimized."}
         </div>
       )}
 
@@ -1491,49 +1398,17 @@ Upgrade to continue improving your catalog now.`
         />
 
         <StatCard
-          label="Avg Optimization Lift"
-          value={`+${allTimeRevenueStats.avgImprovement}${
-            improvementTrend > 0 ? " ?" : improvementTrend < 0 ? " ?" : ""
-          }`}
-          hint={
-            improvementTrend > 0
-              ? `+${improvementTrend} vs last period`
-              : improvementTrend < 0
-                ? `${improvementTrend} vs last period`
-                : "Tracking improvement trends over time"
+          label="Visibility Lift"
+          value={
+            allTimeRevenueStats.avgImprovement > 40
+              ? "+40+"
+              : `${allTimeRevenueStats.avgImprovement >= 0 ? "+" : ""}${
+                  allTimeRevenueStats.avgImprovement
+                }`
           }
+          hint="Based on FeedPilot Visibility Score"
         />
       </div>
-{plan === "growth" && (
-  <div
-    style={{
-      marginTop: 20,
-      padding: 20,
-      borderRadius: 14,
-      background: "#f0fdf4",
-      border: "1px solid #bbf7d0",
-    }}
-  >
-    <div style={{ fontWeight: 800, marginBottom: 6 }}>
-      Weekly Optimization Insight
-    </div>
-
-    <div style={{ fontSize: 14, color: "#065f46", marginBottom: 6 }}>
-      FeedPilot has been actively monitoring your catalog and optimizing weak listings.
-    </div>
-
-   <div style={{ fontSize: 14 }}>
-  • {criticalCount} products were at risk of losing visibility<br/>
-  • FeedPilot is monitoring {products.length} products continuously<br/>
-  • Optimization activity is being applied and recorded automatically
- </div>
-
-    <div style={{ marginTop: 10, fontSize: 13, color: "#047857" }}>
-      Without continuous optimization, these issues could reduce your visibility over time.
-FeedPilot helps prevent that automatically.
-    </div>
-  </div>
-)}
       <div
         style={{
           marginBottom: 22,
@@ -1559,10 +1434,10 @@ FeedPilot helps prevent that automatically.
 
         <div style={{ fontSize: 14, color: "#444", lineHeight: 1.7 }}>
   {plan === "growth"
-    ? `Your catalog is continuously improving. FeedPilot has already helped optimize ${appliedThisWeek} products this week, increasing overall visibility and performance. Turning automation off may cause listings to gradually lose ranking consistency over time.`
+    ? `FeedPilot applied ${appliedThisWeek} optimizations this week and continues monitoring your catalog.`
     : plan === "starter"
-      ? "Starter keeps manual optimization available, but improvement only happens when you actively run it. Growth turns this into a continuous weekly system."
-      : "Low SEO score products may be missing search visibility and potential sales. FeedPilot helps you identify weak listings and improve them before they impact performance."}
+      ? "Starter keeps manual optimization available. Growth turns the same workflow into a weekly automated system."
+      : "FeedPilot shows which listings are weak and what can be improved next."}
 </div>
       </div>
 
@@ -1591,10 +1466,10 @@ FeedPilot helps prevent that automatically.
             </h2>
             <p style={{ color: "#666", marginTop: 0, marginBottom: 0 }}>
               {plan === "growth"
-                ? "FeedPilot is continuously identifying and optimizing these high-impact products."
+                ? "FeedPilot is monitoring these high-impact products."
                 : plan === "starter"
-                  ? "These products need your manual attention first. Starter lets you act on them, but only when you run optimization."
-                  : "These products are already losing visibility. Delaying optimization means continued loss of traffic and sales."}
+                  ? "These products need your manual attention first."
+                  : "These products are losing visibility and need improvement."}
             </p>
           </div>
 
@@ -1616,14 +1491,8 @@ FeedPilot helps prevent that automatically.
             No urgent opportunities found.
           </div>
         ) : (
-          topOpportunities.map((product, index) => (
-            <TopOpportunityCard
-              key={product.id}
-              product={product}
-              index={index}
-              isPro={plan !== "free"}
-              optimizingId={optimizingId}
-              onOptimize={async (product) => {
+          topOpportunities.map((product, index) =>
+            renderCompactOpportunityCard(product, index, async (product) => {
                 if (plan === "free") {
                   openUpgradeModal(
   "This product is already losing visibility",
@@ -1666,10 +1535,10 @@ FeedPilot helps prevent that automatically.
                         ? "Priority product optimized successfully"
                         : "Starter optimization completed successfully";
                     setToast({ message, type: "success" });
-                    setLastSuccessNotice(`✁E${message}. View the result in history below.`);
+                    setLastSuccessNotice(`${message}. View the result in history below.`);
                     window.sessionStorage.setItem(
                       "feedpilotLastSuccess",
-                      `✁E${message}. View the result in history below.`,
+                      `${message}. View the result in history below.`,
                     );
                     setTimeout(() => {
                       window.location.reload();
@@ -1685,9 +1554,8 @@ FeedPilot helps prevent that automatically.
                 } finally {
                   setOptimizingId("");
                 }
-              }}
-            />
-          ))
+              }),
+          )
         )}
       </div>
 
@@ -1746,14 +1614,6 @@ FeedPilot helps prevent that automatically.
       >
         <h2 style={{ marginTop: 0, marginBottom: 8 }}>Growth Opportunities</h2>
 
-        <p style={{ color: "#666", marginTop: 0, marginBottom: 12 }}>
-          {plan === "growth"
-            ? "These products are performing well, but without continuous optimization they may lose ranking advantage over time."
-            : plan === "starter"
-              ? "These products are already strong, but you can still improve them manually before they lose ranking advantage."
-              : "These products are performing well, but consistent improvement is limited until you upgrade."}
-        </p>
-
         {growthOpportunities.length === 0 ? (
           <div
             style={{
@@ -1766,14 +1626,8 @@ FeedPilot helps prevent that automatically.
             No growth opportunities found.
           </div>
         ) : (
-          growthOpportunities.map((product, index) => (
-            <TopOpportunityCard
-              key={product.id}
-              product={product}
-              index={index}
-              isPro={plan !== "free"}
-              optimizingId={optimizingId}
-              onOptimize={async (product) => {
+          growthOpportunities.map((product, index) =>
+            renderCompactOpportunityCard(product, index, async (product) => {
                 if (plan === "free") {
                   openUpgradeModal(
                     "Upgrade required to optimize this product",
@@ -1816,10 +1670,10 @@ FeedPilot helps prevent that automatically.
                         ? "Growth opportunity optimized successfully"
                         : "Starter optimization completed successfully";
                     setToast({ message, type: "success" });
-                    setLastSuccessNotice(`✁E${message}. View the result in history below.`);
+                    setLastSuccessNotice(`${message}. View the result in history below.`);
                     window.sessionStorage.setItem(
                       "feedpilotLastSuccess",
-                      `✁E${message}. View the result in history below.`,
+                      `${message}. View the result in history below.`,
                     );
                     setTimeout(() => window.location.reload(), 800);
                   } else {
@@ -1833,9 +1687,8 @@ FeedPilot helps prevent that automatically.
                 } finally {
                   setOptimizingId("");
                 }
-              }}
-            />
-          ))
+              }),
+          )
         )}
       </div>
 
@@ -2074,7 +1927,8 @@ FeedPilot helps prevent that automatically.
               maxWidth: 760,
             }}
           >
-            You’ve already proved manual optimization can improve listings. Growth keeps FeedPilot scanning and improving your catalog automatically without waiting for you to run it.
+            Manual optimization is working. Growth keeps FeedPilot improving
+            your catalog automatically every week.
           </div>
           <button
             onClick={() => goToUpgrade("post_insight_cta")}
@@ -2124,7 +1978,7 @@ FeedPilot helps prevent that automatically.
               lineHeight: 1.3,
             }}
           >
-            Auto Optimization is active
+            Auto optimization is active.
           </div>
 
           <div
@@ -2136,22 +1990,8 @@ FeedPilot helps prevent that automatically.
               maxWidth: 720,
             }}
           >
-            Your store is currently on Growth. You can manage billing, review
-            automation settings, and keep FeedPilot improving your catalog on
-            schedule.
+            Manage billing or adjust automation rules.
           </div>
-           <div
-  style={{
-    marginTop: 10,
-    fontSize: 13,
-    color: "#6b7280",
-    lineHeight: 1.6,
-    maxWidth: 760,
-  }}
->
-  This plan protects ranking momentum by keeping optimization active in the
-  background.
-</div>
           <div
             style={{
               marginTop: 14,
@@ -2267,10 +2107,10 @@ FeedPilot helps prevent that automatically.
       borderRadius: 12,
       width: 420,
     }}>
-      <h3>You’ve reached your free optimization limit</h3>
+      <h3>You have reached your free optimization limit</h3>
 
       <p style={{ marginTop: 12 }}>
-        You’ve already fixed your first visibility issues  Ebut more products still need improvement.
+        You have fixed your first visibility issues, but more products still need improvement.
       </p>
 
       <p style={{ marginTop: 8 }}>
