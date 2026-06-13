@@ -967,15 +967,15 @@ Next automatic check will run based on your schedule.`);
                 fontWeight: 700,
               }}
             >
-              <span>◁E/span>
+              <span>?</span>
               <span>{buildHeroStatusLabel(plan)}</span>
             </div>
 
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
   {plan === "growth"
-  ? "Your catalog is being optimized automatically  Eevery week."
+  ? "Your catalog is being optimized automatically every week."
   : plan === "starter"
-  ? "You're fixing products  Ebut not fast enough."
+  ? "You're fixing products, but not fast enough."
   : "Stop Losing Visibility. Start Optimizing Automatically."}
 </div>
 
@@ -1493,7 +1493,7 @@ Upgrade to continue improving your catalog now.`
         <StatCard
           label="Avg Optimization Lift"
           value={`+${allTimeRevenueStats.avgImprovement}${
-            improvementTrend > 0 ? " ↁE : improvementTrend < 0 ? " ↁE : ""
+            improvementTrend > 0 ? " ?" : improvementTrend < 0 ? " ?" : ""
           }`}
           hint={
             improvementTrend > 0
