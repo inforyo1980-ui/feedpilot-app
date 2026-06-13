@@ -381,6 +381,97 @@ function buildStarterSuccessText(count: number) {
 function buildGrowthSuccessText(count: number) {
   return `Auto-optimized ${count} product${count > 1 ? "s" : ""} successfully`;
 }
+
+type GrowthAutoRunStatus =
+  | {
+      status: "checking";
+      message: string;
+    }
+  | {
+      status:
+        | "cooldown"
+        | "disabled"
+        | "no_products"
+        | "no_opportunities"
+        | "no_changes"
+        | "optimized"
+        | "server_error";
+      message?: string;
+      optimizedCount?: number;
+      successCount?: number;
+      nextRunAt?: string;
+      remainingHours?: number;
+      runFrequencyDays?: number;
+    };
+
+function formatAutoRunDate(value?: string) {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
+  if (status.status === "checking") return status.message;
+
+  if (status.status === "optimized") {
+    const count = status.optimizedCount ?? status.successCount ?? 0;
+    return buildGrowthSuccessText(count);
+  }
+
+  if (status.status === "cooldown") {
+    const nextRunAt = formatAutoRunDate(status.nextRunAt);
+    return nextRunAt
+      ? `Weekly cooldown active. Next optimization available on ${nextRunAt}.`
+      : status.message || "Weekly cooldown active. FeedPilot is still monitoring your catalog.";
+  }
+
+  if (status.status === "no_products") {
+    return "No eligible products were found for priority optimization.";
+  }
+
+  if (status.status === "no_opportunities") {
+    return "No priority optimization opportunities were found right now.";
+  }
+
+  if (status.status === "no_changes") {
+    return "Priority optimization ran, but no product changes were needed.";
+  }
+
+  if (status.status === "disabled") {
+    return status.message || "Auto optimization is disabled in settings.";
+  }
+
+  return status.message || "Priority optimization failed. Please try again.";
+}
+
+function getGrowthAutoRunTone(status: GrowthAutoRunStatus["status"]) {
+  if (status === "optimized") {
+    return {
+      background: "#ecfdf5",
+      border: "#a7f3d0",
+      color: "#065f46",
+    };
+  }
+
+  if (status === "server_error") {
+    return {
+      background: "#fef2f2",
+      border: "#fecaca",
+      color: "#991b1b",
+    };
+  }
+
+  return {
+    background: "#f9fafb",
+    border: "#e5e7eb",
+    color: "#374151",
+  };
+}
 export default function Index() {
   const {
     snapshot,
@@ -417,6 +508,8 @@ export default function Index() {
   const [starterOptimizing, setStarterOptimizing] = useState(false);
   const [starterOptimized, setStarterOptimized] = useState(false);
   const [emptyRunMessage, setEmptyRunMessage] = useState("");
+  const [growthAutoRunStatus, setGrowthAutoRunStatus] =
+    useState<GrowthAutoRunStatus | null>(null);
   const [upgradeModal, setUpgradeModal] = useState<null | {
     title: string;
     message: string;
@@ -440,6 +533,82 @@ export default function Index() {
 
   const closeUpgradeModal = () => {
     setUpgradeModal(null);
+  };
+
+  const runGrowthAutoRun = async (source: "auto" | "manual") => {
+    setGrowthAutoRunStatus({
+      status: "checking",
+      message:
+        source === "manual"
+          ? "Running priority optimization..."
+          : "Checking priority optimization status...",
+    });
+
+    try {
+      const res = await fetch("/app/auto-run", {
+        method: "GET",
+        credentials: "same-origin",
+      });
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Auto optimization returned an invalid response.");
+      }
+
+      const result = data?.result;
+      const status: GrowthAutoRunStatus = {
+        status: (result?.status ||
+          result?.reason ||
+          "server_error") as GrowthAutoRunStatus["status"],
+        message: result?.message,
+        optimizedCount: result?.optimizedCount,
+        successCount: result?.successCount,
+        nextRunAt: result?.nextRunAt,
+        remainingHours: result?.remainingHours,
+        runFrequencyDays: result?.runFrequencyDays,
+      };
+
+      setGrowthAutoRunStatus(status);
+
+      const message = buildGrowthAutoRunMessage(status);
+      setToast({
+        message,
+        type:
+          status.status === "optimized"
+            ? "success"
+            : status.status === "server_error"
+              ? "error"
+              : "info",
+      });
+
+      if (status.status === "optimized") {
+        setLastSuccessNotice(`${message}. View the result in history below.`);
+        window.sessionStorage.setItem(
+          "feedpilotLastSuccess",
+          `${message}. View the result in history below.`,
+        );
+        setTimeout(() => {
+          window.location.reload();
+        }, 1200);
+      } else {
+        setTimeout(() => setToast(null), 3500);
+      }
+    } catch (error: any) {
+      console.error("AUTO RUN FETCH ERROR:", error);
+      const status: GrowthAutoRunStatus = {
+        status: "server_error",
+        message: error?.message || "Priority optimization failed.",
+      };
+      setGrowthAutoRunStatus(status);
+      setToast({
+        message: buildGrowthAutoRunMessage(status),
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3500);
+    }
   };
 
   useEffect(() => {
@@ -472,6 +641,8 @@ export default function Index() {
   useEffect(() => {
     console.log("AUTO CHECK EFFECT START", plan);
      if (plan !== "growth") return;
+    runGrowthAutoRun("auto");
+    return;
 
     let cancelled = false;
 
@@ -504,10 +675,10 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
   const successCount = data.result.successCount;
   const message = buildGrowthSuccessText(successCount);
   setToast({ message, type: "success" });
-  setLastSuccessNotice(`✅ ${message}. View the result in history below.`);
+  setLastSuccessNotice(`✁E${message}. View the result in history below.`);
   window.sessionStorage.setItem(
     "feedpilotLastSuccess",
-    `✅ ${message}. View the result in history below.`,
+    `✁E${message}. View the result in history below.`,
   );
   setTimeout(() => {
     window.location.reload();
@@ -586,6 +757,9 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
       return;
     }
 
+    await runGrowthAutoRun("manual");
+    return;
+
     setDone(false);
     setSuccessCount(0);
     setEmptyRunMessage("");
@@ -596,7 +770,7 @@ if (data?.result?.ran && data?.result?.successCount > 0) {
     );
 
     if (queue.length === 0) {
-      setEmptyRunMessage(`✅ Your catalog is fully optimized.
+      setEmptyRunMessage(`✁EYour catalog is fully optimized.
 No immediate action needed.
 
 FeedPilot is actively monitoring your store.
@@ -675,6 +849,10 @@ Next automatic check will run based on your schedule.`);
       setProgress(0);
     }
   };
+
+  const growthAutoRunTone = growthAutoRunStatus
+    ? getGrowthAutoRunTone(growthAutoRunStatus.status)
+    : null;
 
   return (
     <div style={{ padding: 24, background: "#f6f7f8", minHeight: "100vh" }}>
@@ -789,23 +967,23 @@ Next automatic check will run based on your schedule.`);
                 fontWeight: 700,
               }}
             >
-              <span>●</span>
+              <span>◁E/span>
               <span>{buildHeroStatusLabel(plan)}</span>
             </div>
 
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
   {plan === "growth"
-  ? "Your catalog is being optimized automatically — every week."
+  ? "Your catalog is being optimized automatically  Eevery week."
   : plan === "starter"
-  ? "You're fixing products — but not fast enough."
+  ? "You're fixing products  Ebut not fast enough."
   : "Stop Losing Visibility. Start Optimizing Automatically."}
 </div>
 
             <div style={{ fontSize: 14, color: "#666", marginBottom: 14 }}>
   {plan === "growth"
-  ? "FeedPilot is actively scanning your catalog, fixing weak listings, and preventing visibility loss — without any manual work."
+  ? "FeedPilot is actively scanning your catalog, fixing weak listings, and preventing visibility loss  Ewithout any manual work."
   : plan === "starter"
-  ? "You’ve started improving your listings manually — but new issues keep appearing. Without automation, optimization becomes a constant task."
+  ? "You’ve started improving your listings manually  Ebut new issues keep appearing. Without automation, optimization becomes a constant task."
   : "FeedPilot keeps detecting weak listings, helping you improve them now, and turning optimization into an ongoing system when you automate."}
 </div>
             <div
@@ -818,8 +996,8 @@ Next automatic check will run based on your schedule.`);
   {plan === "growth"
   ? "Your store is protected. FeedPilot is continuously monitoring and improving your product visibility."
   : plan === "starter"
-  ? "You’re doing the work manually — but new issues will continue to appear every week."
-  : "Without automation, new issues will keep appearing — and your visibility will continue to drop every week."}
+  ? "You’re doing the work manually  Ebut new issues will continue to appear every week."
+  : "Without automation, new issues will keep appearing  Eand your visibility will continue to drop every week."}
 </div>
             <div
               style={{
@@ -844,7 +1022,7 @@ Next automatic check will run based on your schedule.`);
         );
 
         if (queue.length === 0) {
-          setEmptyRunMessage(`✅ Your catalog is stable.
+          setEmptyRunMessage(`✁EYour catalog is stable.
 No immediate manual action needed right now.`);
           return;
         }
@@ -945,7 +1123,7 @@ No immediate manual action needed right now.`);
     );
 
     if (queue.length === 0) {
-      setEmptyRunMessage(`✅ Your catalog is stable.
+      setEmptyRunMessage(`✁EYour catalog is stable.
 No immediate manual action needed right now.`);
       return;
     }
@@ -970,10 +1148,10 @@ No immediate manual action needed right now.`);
         const successCount = 1;
         const message = buildStarterSuccessText(successCount);
         setToast({ message, type: "success" });
-        setLastSuccessNotice(`✅ ${message}. View the result in history below.`);
+        setLastSuccessNotice(`✁E${message}. View the result in history below.`);
         window.sessionStorage.setItem(
           "feedpilotLastSuccess",
-          `✅ ${message}. View the result in history below.`,
+          `✁E${message}. View the result in history below.`,
         );
         setTimeout(() => window.location.reload(), 1200);
       } else {
@@ -1103,7 +1281,7 @@ setTimeout(() => setToast(null), 2000);
     : plan === "starter"
       ? "Manual optimization is active, but new issues keep appearing every week. Upgrade to Growth to automatically fix them before they impact your traffic."
       : freeLimitReached
-  ? `You’ve fixed your first visibility issues — but more products are still underperforming.
+  ? `You’ve fixed your first visibility issues  Ebut more products are still underperforming.
 
 Free plan allows ${FREE_OPTIMIZATION_LIMIT} optimizations every ${FREE_OPTIMIZATION_WINDOW_DAYS} days.
 Upgrade to continue improving your catalog now.`
@@ -1247,7 +1425,7 @@ Upgrade to continue improving your catalog now.`
           }}
         >
           {successCount > 0
-            ? `✅ Batch optimization completed! Optimized ${successCount} products.`
+            ? `✁EBatch optimization completed! Optimized ${successCount} products.`
             : "⚠ Batch run finished, but no products were optimized."}
         </div>
       )}
@@ -1315,7 +1493,7 @@ Upgrade to continue improving your catalog now.`
         <StatCard
           label="Avg Optimization Lift"
           value={`+${allTimeRevenueStats.avgImprovement}${
-            improvementTrend > 0 ? " ↑" : improvementTrend < 0 ? " ↓" : ""
+            improvementTrend > 0 ? " ↁE : improvementTrend < 0 ? " ↁE : ""
           }`}
           hint={
             improvementTrend > 0
@@ -1488,10 +1666,10 @@ FeedPilot helps prevent that automatically.
                         ? "Priority product optimized successfully"
                         : "Starter optimization completed successfully";
                     setToast({ message, type: "success" });
-                    setLastSuccessNotice(`✅ ${message}. View the result in history below.`);
+                    setLastSuccessNotice(`✁E${message}. View the result in history below.`);
                     window.sessionStorage.setItem(
                       "feedpilotLastSuccess",
-                      `✅ ${message}. View the result in history below.`,
+                      `✁E${message}. View the result in history below.`,
                     );
                     setTimeout(() => {
                       window.location.reload();
@@ -1638,10 +1816,10 @@ FeedPilot helps prevent that automatically.
                         ? "Growth opportunity optimized successfully"
                         : "Starter optimization completed successfully";
                     setToast({ message, type: "success" });
-                    setLastSuccessNotice(`✅ ${message}. View the result in history below.`);
+                    setLastSuccessNotice(`✁E${message}. View the result in history below.`);
                     window.sessionStorage.setItem(
                       "feedpilotLastSuccess",
-                      `✅ ${message}. View the result in history below.`,
+                      `✁E${message}. View the result in history below.`,
                     );
                     setTimeout(() => window.location.reload(), 800);
                   } else {
@@ -1729,6 +1907,50 @@ FeedPilot helps prevent that automatically.
               ? "Optimize Priority Products"
               : "Run Priority Optimization"}
         </button>
+
+        {plan === "growth" && growthAutoRunStatus && growthAutoRunTone && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              borderRadius: 10,
+              background: growthAutoRunTone.background,
+              border: `1px solid ${growthAutoRunTone.border}`,
+              color: growthAutoRunTone.color,
+              fontSize: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 4 }}>
+              {growthAutoRunStatus.status === "checking"
+                ? "Checking priority optimization"
+                : growthAutoRunStatus.status === "optimized"
+                  ? "Priority optimization complete"
+                  : growthAutoRunStatus.status === "cooldown"
+                    ? "Priority optimization on cooldown"
+                    : growthAutoRunStatus.status === "server_error"
+                      ? "Priority optimization error"
+                      : "Priority optimization status"}
+            </div>
+            <div>{buildGrowthAutoRunMessage(growthAutoRunStatus)}</div>
+            {growthAutoRunStatus.status === "optimized" && (
+              <div style={{ marginTop: 4 }}>
+                Optimized count:{" "}
+                {growthAutoRunStatus.optimizedCount ??
+                  growthAutoRunStatus.successCount ??
+                  0}
+              </div>
+            )}
+            {growthAutoRunStatus.status === "cooldown" && (
+              <div style={{ marginTop: 4 }}>
+                Next available: {formatAutoRunDate(growthAutoRunStatus.nextRunAt)}
+                {typeof growthAutoRunStatus.remainingHours === "number"
+                  ? ` (${growthAutoRunStatus.remainingHours} hours remaining)`
+                  : ""}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div id="optimization-history">
@@ -2048,7 +2270,7 @@ FeedPilot helps prevent that automatically.
       <h3>You’ve reached your free optimization limit</h3>
 
       <p style={{ marginTop: 12 }}>
-        You’ve already fixed your first visibility issues — but more products still need improvement.
+        You’ve already fixed your first visibility issues  Ebut more products still need improvement.
       </p>
 
       <p style={{ marginTop: 8 }}>

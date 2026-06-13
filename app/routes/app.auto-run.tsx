@@ -5,6 +5,27 @@ import { optimizeProductWithAI } from "../services/optimizer.server";
 const AUTO_RUN_COOLDOWN_DAYS = 7;
 const MAX_AUTO_PRODUCTS = 2;
 
+function buildCooldownResult(lastRunAt: Date, now: Date) {
+  const nextRunAt = new Date(lastRunAt);
+  nextRunAt.setDate(nextRunAt.getDate() + AUTO_RUN_COOLDOWN_DAYS);
+
+  const remainingMs = Math.max(nextRunAt.getTime() - now.getTime(), 0);
+  const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+
+  return {
+    status: "cooldown",
+    ran: false,
+    reason: "cooldown",
+    lastRunAt: lastRunAt.toISOString(),
+    nextRunAt: nextRunAt.toISOString(),
+    remainingHours,
+    runFrequencyDays: AUTO_RUN_COOLDOWN_DAYS,
+    message: `Priority optimization is available again in ${remainingHours} hour${
+      remainingHours === 1 ? "" : "s"
+    }.`,
+  };
+}
+
 export const loader = async ({ request }: any) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
@@ -29,7 +50,12 @@ export const loader = async ({ request }: any) => {
 
     if (!settings.enabled) {
       return Response.json({
-        result: { ran: false, reason: "not_enabled" },
+        result: {
+          status: "disabled",
+          ran: false,
+          reason: "disabled",
+          message: "Auto optimization is disabled in settings.",
+        },
       });
     }
 
@@ -42,14 +68,15 @@ console.log("AUTO RUN SHOP:", shop);
 console.log("AUTO RUN SETTINGS lastRunAt:", settings.lastRunAt);
 
 if (settings.lastRunAt !== null) {
-  const diffMs = now.getTime() - new Date(settings.lastRunAt).getTime();
+  const lastRunAt = new Date(settings.lastRunAt);
+  const diffMs = now.getTime() - lastRunAt.getTime();
   const days = diffMs / (1000 * 60 * 60 * 24);
 
   console.log("AUTO RUN COOLDOWN DAYS:", days);
 
   if (days < AUTO_RUN_COOLDOWN_DAYS) {
     return Response.json({
-      result: { ran: false, reason: "cooldown", days },
+      result: buildCooldownResult(lastRunAt, now),
     });
   }
 }
@@ -84,7 +111,12 @@ const snapshot = {
 
     if (!snapshot?.products || snapshot.products.length === 0) {
       return Response.json({
-        result: { ran: false, reason: "no_products" },
+        result: {
+          status: "no_products",
+          ran: false,
+          reason: "no_products",
+          message: "No products were found for priority optimization.",
+        },
       });
     }
 
@@ -103,7 +135,13 @@ const snapshot = {
 
     if (queue.length === 0) {
       return Response.json({
-        result: { ran: false, reason: "no-opportunities" },
+        result: {
+          status: "no_opportunities",
+          ran: false,
+          reason: "no_opportunities",
+          checkedCount: snapshot.products.length,
+          message: "No eligible priority optimization opportunities were found.",
+        },
       });
     }
 
@@ -163,10 +201,32 @@ if (!result?.skipped) {
     // ======================
     // 7️⃣ 返回
     // ======================
+    if (successCount === 0) {
+      return Response.json({
+        result: {
+          status: "no_changes",
+          ran: true,
+          reason: "no_changes",
+          successCount,
+          checkedCount: snapshot.products.length,
+          targetCount: targets.length,
+          message: "Priority optimization ran, but no product changes were needed.",
+        },
+      });
+    }
+
     return Response.json({
       result: {
+        status: "optimized",
         ran: true,
+        reason: "optimized",
         successCount,
+        optimizedCount: successCount,
+        checkedCount: snapshot.products.length,
+        targetCount: targets.length,
+        message: `Optimized ${successCount} product${
+          successCount === 1 ? "" : "s"
+        }.`,
       },
     });
 
@@ -176,9 +236,10 @@ if (!result?.skipped) {
     return Response.json(
       {
         result: {
+          status: "server_error",
           ran: false,
           reason: "server_error",
-          message: error?.message,
+          message: error?.message || "Auto optimization failed.",
         },
       },
       { status: 500 }
