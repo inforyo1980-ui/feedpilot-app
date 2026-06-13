@@ -79,7 +79,7 @@ export type DashboardSnapshot = {
 };
 
 export function calculateSeoScore(title: string, description: string) {
-  let score = 20;
+  let score = 45;
 
   const cleanTitle = (title || "").trim();
   const cleanDescription = (description || "")
@@ -96,19 +96,20 @@ export function calculateSeoScore(title: string, description: string) {
   const uniqueTitleWords = new Set(titleWords);
   const keywordCount = titleWords.length;
   const uniqueKeywordCount = uniqueTitleWords.size;
+  const hasDescription = cleanDescription.length > 0;
 
-  if (cleanTitle.length >= 25) score += 8;
-  if (cleanTitle.length >= 40) score += 8;
-  if (cleanTitle.length >= 60) score += 6;
+  if (cleanTitle.length >= 25) score += 5;
+  if (cleanTitle.length >= 40) score += 5;
+  if (cleanTitle.length >= 60) score += 4;
 
-  if (cleanDescription.length >= 80) score += 8;
-  if (cleanDescription.length >= 160) score += 8;
-  if (cleanDescription.length >= 300) score += 6;
+  if (cleanDescription.length >= 80) score += 5;
+  if (cleanDescription.length >= 160) score += 5;
+  if (cleanDescription.length >= 300) score += 4;
 
-  if (keywordCount >= 4) score += 6;
-  if (keywordCount >= 7) score += 4;
-  if (uniqueKeywordCount >= 4) score += 6;
-  if (uniqueKeywordCount >= 7) score += 4;
+  if (keywordCount >= 4) score += 4;
+  if (keywordCount >= 7) score += 3;
+  if (uniqueKeywordCount >= 4) score += 4;
+  if (uniqueKeywordCount >= 7) score += 3;
 
   const conversionWords = [
     "premium",
@@ -126,7 +127,7 @@ export function calculateSeoScore(title: string, description: string) {
   const conversionHits = conversionWords.filter(
     (w) => cleanTitle.toLowerCase().includes(w) || cleanDescription.includes(w),
   ).length;
-  score += Math.min(conversionHits * 2, 8);
+  score += Math.min(conversionHits * 2, 6);
 
   const categoryWords = [
     "snowboard",
@@ -141,17 +142,17 @@ export function calculateSeoScore(title: string, description: string) {
   const categoryHits = categoryWords.filter(
     (w) => cleanTitle.toLowerCase().includes(w) || cleanDescription.includes(w),
   ).length;
-  score += Math.min(categoryHits * 2, 8);
+  score += Math.min(categoryHits * 2, 6);
 
-  if (cleanTitle.length < 20) score -= 12;
-  if (cleanDescription.length < 50) score -= 12;
+  if (cleanTitle.length > 0 && cleanTitle.length < 20) score -= 6;
+  if (!hasDescription) score -= 8;
+  else if (cleanDescription.length < 50) score -= 6;
+  else if (cleanDescription.length < 120) score -= 3;
 
   const repetitionPenalty = keywordCount - uniqueKeywordCount;
-  if (repetitionPenalty >= 2) score -= repetitionPenalty * 2;
+  if (repetitionPenalty >= 2) score -= Math.min(repetitionPenalty * 2, 8);
 
-  if (cleanDescription.length > 0 && cleanDescription.length < 120) score -= 4;
-
-  return Math.max(10, Math.min(score, 95));
+  return Math.max(35, Math.min(Math.round(score), 90));
 }
 
 export function auditProduct(product: Omit<Product, "issues" | "fixes">): Product {
