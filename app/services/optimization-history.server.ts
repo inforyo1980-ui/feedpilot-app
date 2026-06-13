@@ -169,5 +169,5 @@ function buildWeeklySummary(input: {
     return "No optimization changes were applied in the last 7 days.";
   }
 
-  return `${input.appliedCount} optimizations were applied in the last 7 days. ${input.improvedProducts} products showed measurable score improvement, with an average impact delta of ${input.avgImpactDelta}. ${input.automatedCount} of those changes came from automation.`;
+  return `FeedPilot applied ${input.appliedCount} optimizations in the last 7 days. Lift is shown as a directional SEO improvement signal.`;
 }

@@ -35,6 +35,12 @@ type WeeklyInsight = {
   }>;
 };
 
+type ScoreLiftItem = {
+  impactDelta: number | null;
+  seoScoreBefore: number | null;
+  seoScoreAfter: number | null;
+};
+
 export function OptimizationHistoryPanel(props: {
   weeklyInsight: WeeklyInsight;
   optimizationHistory: HistoryItem[];
@@ -77,11 +83,10 @@ export function OptimizationHistoryPanel(props: {
             }}
           >
             FeedPilot applied {weeklyInsight.appliedCount} optimizations in the last{" "}
-            {weeklyInsight.windowDays} days.{" "}
+            {weeklyInsight.windowDays} days. Lift is shown as a directional SEO
+            improvement signal.{" "}
             {weeklyInsight.appliedCount > 0
-              ? `${weeklyInsight.improvedProducts} products improved with measurable SEO gains, generating a total impact of ${
-                  weeklyInsight.totalImpactDelta >= 0 ? "+" : ""
-                }${weeklyInsight.totalImpactDelta}.`
+              ? `${weeklyInsight.improvedProducts} products improved with measurable SEO gains.`
               : "System is monitoring your catalog for new opportunities."}{" "}
             Continuous improvements are building your catalog performance over time.
           </div>
@@ -95,7 +100,7 @@ export function OptimizationHistoryPanel(props: {
           >
             <MetricCard label="Applied" value={weeklyInsight.appliedCount} />
             <MetricCard label="Improved" value={weeklyInsight.improvedProducts} />
-            <MetricCard label="Impact Δ" value={weeklyInsight.totalImpactDelta} />
+            <MetricCard label="Impact" value={weeklyInsight.totalImpactDelta} />
             <MetricCard label="Automation" value={weeklyInsight.automatedCount} />
           </div>
 
@@ -139,12 +144,12 @@ export function OptimizationHistoryPanel(props: {
                         fontWeight: 700,
                       }}
                     >
-                      +{item.impactDelta}
+                      {formatLift(item)}
                     </div>
                   </div>
 
                   <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                    Score: {display(item.seoScoreBefore)} → {display(item.seoScoreAfter)}
+                    Score: {display(item.seoScoreBefore)} to {display(item.seoScoreAfter)}
                   </div>
                 </div>
               ))
@@ -199,7 +204,7 @@ export function OptimizationHistoryPanel(props: {
                 </div>
 
                 <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
-                  {item.source} · {item.status}
+                  {item.source} - {item.status}
                 </div>
 
                 <HistoryScoreGrid item={item} />
@@ -215,11 +220,16 @@ export function OptimizationHistoryPanel(props: {
 function HistoryScoreGrid({ item }: { item: HistoryItem }) {
   const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
   const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
-  const storedDelta = isFiniteNumber(item.impactDelta) ? item.impactDelta : null;
-  const delta = before !== null && after !== null ? storedDelta ?? after - before : null;
+  const delta = before !== null && after !== null ? after - before : null;
+  const isLegacyRecord = before === null;
+  const estimatedLift = !isLegacyRecord && isEstimatedLift(item);
 
   return (
     <div>
+      <div style={{ color: "#374151", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+        FeedPilot Visibility Score
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -227,19 +237,26 @@ function HistoryScoreGrid({ item }: { item: HistoryItem }) {
           gap: 8,
         }}
       >
-        <HistoryMetric label="Before" value={before} unavailableLabel="Unavailable" />
-        <HistoryMetric label="After" value={after} unavailableLabel="Unavailable" />
+        <HistoryMetric label="Before" value={before} unavailableLabel="Not tracked" />
+        <HistoryMetric label="After" value={after} unavailableLabel="Not tracked" />
         <HistoryMetric
           label="Lift"
           value={delta}
-          unavailableLabel="Unavailable"
+          unavailableLabel="Not tracked"
+          displayValue={estimatedLift ? "+40+" : undefined}
           signed
         />
       </div>
 
-      {before === null ? (
+      {estimatedLift ? (
+        <div style={{ marginTop: 8, color: "#6b7280", fontSize: 11 }}>
+          FeedPilot Visibility Score is based on title quality, description completeness, and content signals.
+        </div>
+      ) : null}
+
+      {isLegacyRecord ? (
         <div style={{ marginTop: 8, color: "#9ca3af", fontSize: 11 }}>
-          Legacy data · the original before score was not stored.
+          Legacy data. The original before score was not stored.
         </div>
       ) : null}
     </div>
@@ -250,11 +267,13 @@ function HistoryMetric(props: {
   label: string;
   value: number | null;
   unavailableLabel: string;
+  displayValue?: string;
   signed?: boolean;
 }) {
-  const { label, value, unavailableLabel, signed = false } = props;
+  const { label, value, unavailableLabel, displayValue, signed = false } = props;
   const formattedValue =
-    value === null ? unavailableLabel : `${signed && value > 0 ? "+" : ""}${value}`;
+    displayValue ??
+    (value === null ? unavailableLabel : `${signed && value > 0 ? "+" : ""}${value}`);
 
   return (
     <div
@@ -297,12 +316,38 @@ function MetricCard(props: { label: string; value: number }) {
   );
 }
 
+function formatLift(item: ScoreLiftItem) {
+  if (isEstimatedLift(item)) return "+40+";
+
+  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
+  const delta =
+    before !== null && after !== null
+      ? after - before
+      : isFiniteNumber(item.impactDelta)
+        ? item.impactDelta
+        : null;
+  if (delta === null) return "Not tracked";
+
+  return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
 function display(value: number | null | undefined) {
   return isFiniteNumber(value) ? value : "-";
 }
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isEstimatedLift(item: ScoreLiftItem) {
+  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
+
+  if (before === null || after === null) return false;
+
+  const delta = after - before;
+  return delta > 40 || (before <= 20 && after >= 80);
 }
 
 function formatDate(value: string) {
