@@ -2,14 +2,12 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
-import { getPlan } from "../utils/plan.server";
+import { getPlanWithDevOverride } from "../utils/plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { billing } = await authenticate.admin(request);
 
-  const realPlan = await getPlan(billing);
-  const FORCE_PLAN: "free" | "starter" | "growth" | null = null;
-  const plan = FORCE_PLAN ?? realPlan;
+  const plan = await getPlanWithDevOverride(request, billing);
 
   return Response.json({ plan });
 };

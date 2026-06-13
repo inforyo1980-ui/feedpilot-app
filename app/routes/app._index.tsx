@@ -8,7 +8,12 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useEffect, useMemo, useState } from "react";
 import prisma from "../db.server";
-import { getPlan } from "../utils/plan.server";
+import {
+  getDevPlanOverride,
+  getPlan,
+  getPlanWithDevOverride,
+  isDevPlanOverrideEnabled,
+} from "../utils/plan.server";
 import {
   calculateSeoScore,
   getEnhancedDashboardData,
@@ -207,9 +212,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const improvementTrend =
     revenueStats.avgImprovement - (previousStats.avgImprovement || 0);
 
-  const realPlan = await getPlan(billing);
-const FORCE_PLAN: "free" | "starter" | "growth" | null = null;
-  const plan = FORCE_PLAN ?? realPlan;
+  const plan = await getPlanWithDevOverride(request, billing);
+  const devPlanOverride = getDevPlanOverride(request);
 
   const freeWindowStart = new Date();
   freeWindowStart.setDate(
@@ -253,6 +257,8 @@ const FORCE_PLAN: "free" | "starter" | "growth" | null = null;
     allTimeRevenueStats,
     improvementTrend,
     plan,
+    devPlanOverride,
+    isDevPlanSwitcherEnabled: isDevPlanOverrideEnabled(),
     freeRemaining,
     manualOptimizationCount,
     freeLimitReached,
@@ -482,6 +488,8 @@ export default function Index() {
     freeRemaining,
     freeLimitReached,
     plan,
+    devPlanOverride,
+    isDevPlanSwitcherEnabled,
   } = useLoaderData<typeof loader>();
 
   const theme =
@@ -639,8 +647,9 @@ export default function Index() {
 
   useEffect(() => {
     if (plan !== "growth") return;
+    if (devPlanOverride) return;
     runGrowthAutoRun("auto");
-  }, [plan]);
+  }, [devPlanOverride, plan]);
 
   const topOpportunities = useMemo(() => {
     const critical = snapshot.topPriorityOpportunities.filter(
@@ -2033,6 +2042,87 @@ setTimeout(() => setToast(null), 2000);
               Automation Settings
             </Link>
           </div>
+        </div>
+      )}
+
+      {isDevPlanSwitcherEnabled && (
+        <div
+          style={{
+            marginTop: 24,
+            marginLeft: "auto",
+            maxWidth: 420,
+            border: "1px solid #d1d5db",
+            borderRadius: 8,
+            padding: 14,
+            background: "#fff",
+            boxShadow: "0 8px 20px rgba(15,23,42,0.06)",
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>
+            Dev Plan Switcher
+          </div>
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 12,
+              lineHeight: 1.5,
+              color: "#6b7280",
+            }}
+          >
+            Development only. Does not change Shopify billing.
+          </div>
+          <form
+            method="post"
+            action="/app/dev-plan"
+            style={{
+              marginTop: 12,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {(["free", "starter", "growth"] as const).map((devPlan) => {
+              const isActive = devPlanOverride === devPlan;
+              return (
+                <button
+                  key={devPlan}
+                  type="submit"
+                  name="plan"
+                  value={devPlan}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: isActive ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: isActive ? "#111827" : "#fff",
+                    color: isActive ? "#fff" : "#111827",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {devPlan}
+                </button>
+              );
+            })}
+            <button
+              type="submit"
+              name="plan"
+              value=""
+              style={{
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: "#fff",
+                color: "#374151",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Clear override
+            </button>
+          </form>
         </div>
       )}
 
