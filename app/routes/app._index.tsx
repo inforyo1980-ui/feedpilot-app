@@ -879,7 +879,7 @@ export default function Index() {
             marginBottom: 8,
           }}
         >
-          FeedPilot Growth Engine
+          FeedPilot Visibility Engine
         </div>
 
         <h1
@@ -1914,7 +1914,7 @@ setTimeout(() => setToast(null), 2000);
                 fontSize: 14,
               }}
             >
-              Start Starter ($9/mo)
+              Upgrade to Starter ($9/mo)
             </button>
 
             <button
