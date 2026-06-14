@@ -542,6 +542,29 @@ export default function Index() {
     setUpgradeModal(null);
   };
 
+  const handleDevPlanSwitch = async (
+    selectedPlanOrEmpty: "" | "free" | "starter" | "growth",
+  ) => {
+    try {
+      const response = await fetch("/app/dev-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ plan: selectedPlanOrEmpty }).toString(),
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        throw new Error("Plan switch failed.");
+      }
+
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "Dev plan switch failed", type: "error" });
+      setTimeout(() => setToast(null), 2500);
+    }
+  };
+
   const runGrowthAutoRun = async (source: "auto" | "manual") => {
     setGrowthAutoRunStatus({
       status: "checking",
@@ -2071,9 +2094,7 @@ setTimeout(() => setToast(null), 2000);
           >
             Development only. Does not change Shopify billing.
           </div>
-          <form
-            method="post"
-            action="/app/dev-plan"
+          <div
             style={{
               marginTop: 12,
               display: "flex",
@@ -2086,9 +2107,8 @@ setTimeout(() => setToast(null), 2000);
               return (
                 <button
                   key={devPlan}
-                  type="submit"
-                  name="plan"
-                  value={devPlan}
+                  type="button"
+                  onClick={() => handleDevPlanSwitch(devPlan)}
                   style={{
                     padding: "8px 10px",
                     borderRadius: 6,
@@ -2106,9 +2126,8 @@ setTimeout(() => setToast(null), 2000);
               );
             })}
             <button
-              type="submit"
-              name="plan"
-              value=""
+              type="button"
+              onClick={() => handleDevPlanSwitch("")}
               style={{
                 padding: "8px 10px",
                 borderRadius: 6,
@@ -2122,7 +2141,7 @@ setTimeout(() => setToast(null), 2000);
             >
               Clear override
             </button>
-          </form>
+          </div>
         </div>
       )}
 

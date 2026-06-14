@@ -39,9 +39,10 @@ export async function getPlanWithDevOverride(request: Request, billing: any) {
 export function buildDevPlanCookie(plan: PlanType | null) {
   const parts = [
     `${DEV_PLAN_COOKIE}=${plan ?? ""}`,
-    "Path=/app",
+    "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    "SameSite=None",
+    "Secure",
   ];
 
   if (!plan) {
