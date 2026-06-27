@@ -122,13 +122,18 @@ if (seoScoreAfter <= resolvedSeoScoreBefore) {
   console.log("⛔ SKIP: no improvement");
 
   return {
+    ok: true,
+    applied: false,
+    recorded: false,
     skipped: true,
+    reason: "no_improvement",
+    status: "no_improvement",
     productId,
     seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
   };
 }
-  await applyOptimizedTitleAndRecord({
+  const appliedResult = await applyOptimizedTitleAndRecord({
     admin,
     shopDomain,
     productId,
@@ -151,6 +156,11 @@ if (seoScoreAfter <= resolvedSeoScoreBefore) {
   });
 
   return {
+    ok: true,
+    applied: true,
+    recorded: Boolean(appliedResult?.history?.id),
+    history: appliedResult?.history ?? null,
+    product: appliedResult?.product ?? null,
     productId,
     originalTitle: title,
     appliedTitle: titleAfter,

@@ -226,6 +226,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           where: {
             shopDomain: session.shop,
             source: "manual",
+            status: "applied",
             createdAt: {
               gte: freeWindowStart,
             },
@@ -287,6 +288,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       where: {
         shopDomain: session.shop,
         source: "manual",
+        status: "applied",
         createdAt: {
           gte: freeWindowStart,
         },
@@ -541,6 +543,21 @@ export default function Index() {
   const closeUpgradeModal = () => {
     setUpgradeModal(null);
   };
+
+  const buildMainOptimizePostUrl = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("index", "");
+    return `${url.pathname}${url.search}`;
+  };
+
+  const isNoImprovementResponse = (data: any) =>
+    data?.skipped === true ||
+    data?.applied === false ||
+    data?.recorded === false ||
+    data?.status === "no_improvement";
+
+  const isAppliedAndRecordedResponse = (data: any) =>
+    data?.applied === true && data?.recorded === true;
 
   const handleDevPlanSwitch = async (
     selectedPlanOrEmpty: "" | "free" | "starter" | "growth",
@@ -989,11 +1006,15 @@ export default function Index() {
   <>
     <button
       type="button"
+      disabled={starterOptimizing}
       onClick={async () => {
         if (freeLimitReached) {
           goToUpgrade("hero_free_limit_primary");
           return;
         }
+
+        setStarterOptimizing(true);
+        setStarterOptimized(false);
 
         const queue = snapshot.products.filter(
           (p: ProductScanResult) => p.optimizationReasons.length > 0,
@@ -1002,6 +1023,7 @@ export default function Index() {
         if (queue.length === 0) {
           setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
+          setStarterOptimizing(false);
           return;
         }
 
@@ -1013,29 +1035,51 @@ No immediate manual action needed right now.`);
         formData.append("productId", product.id);
         formData.append("description", product.descriptionHtml || "");
 
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+
         try {
-          const res = await fetch("?index", {
+          const res = await fetch(buildMainOptimizePostUrl(), {
             method: "POST",
             body: formData,
+            signal: controller.signal,
           });
 
-          if (res.status === 403) {
-            goToUpgrade("free_limit_reached_after_click");
-            return;
-          }
+          const data = await res.json().catch(() => null);
 
           if (res.ok) {
+            if (isNoImprovementResponse(data)) {
+              setToast({
+                message:
+                  "No improvement was detected, so FeedPilot did not apply changes or use a free optimization.",
+                type: "info",
+              });
+              setTimeout(() => setToast(null), 3500);
+              return;
+            }
+
+            if (!isAppliedAndRecordedResponse(data)) {
+              setToast({
+                message: "No optimization was applied. Free usage was not consumed.",
+                type: "info",
+              });
+              setTimeout(() => setToast(null), 3500);
+              return;
+            }
+
             setToast({
               message: "Free optimization completed successfully",
               type: "success",
             });
+            setStarterOptimized(true);
 
             setTimeout(() => {
               window.location.reload();
             }, 1000);
           } else {
             setToast({
-              message: "Optimization failed",
+              message:
+                data?.error || "Optimization failed. Please try again.",
               type: "error",
             });
             setTimeout(() => setToast(null), 2000);
@@ -1043,12 +1087,17 @@ No immediate manual action needed right now.`);
         } catch (error) {
           console.error(error);
           setToast({
-            message: "Network error",
+            message:
+              (error as Error)?.name === "AbortError"
+                ? "Optimization timed out. Please try again."
+                : "Optimization failed. Please try again.",
             type: "error",
           });
           setTimeout(() => setToast(null), 2000);
         } finally {
+          window.clearTimeout(timeoutId);
           setOptimizingId("");
+          setStarterOptimizing(false);
         }
       }}
       style={{
@@ -1057,12 +1106,17 @@ No immediate manual action needed right now.`);
         border: "none",
         background: "#111",
         color: "#fff",
-        cursor: "pointer",
+        cursor: starterOptimizing ? "not-allowed" : "pointer",
         fontWeight: 800,
         fontSize: 15,
+        opacity: starterOptimizing ? 0.7 : 1,
       }}
     >
-      {freeLimitReached ? "Unlock Unlimited Optimization" : "Optimize Now"}
+      {starterOptimizing
+        ? "Optimizing..."
+        : freeLimitReached
+          ? "Unlock Unlimited Optimization"
+          : "Optimize Now"}
     </button>
 
     <button
@@ -1096,6 +1150,9 @@ No immediate manual action needed right now.`);
   type="button"
   disabled={starterOptimizing}
   onClick={async () => {
+    setStarterOptimizing(true);
+    setStarterOptimized(false);
+
     const queue = snapshot.products.filter(
       (p: ProductScanResult) => p.optimizationReasons.length > 0,
     );
@@ -1103,29 +1160,53 @@ No immediate manual action needed right now.`);
     if (queue.length === 0) {
       setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
+      setStarterOptimizing(false);
       return;
     }
 
     const product = queue[0];
     setOptimizingId(product.id);
-    setStarterOptimizing(true);
-    setStarterOptimized(false);
 
     const formData = new FormData();
     formData.append("title", product.title);
     formData.append("productId", product.id);
     formData.append("description", product.descriptionHtml || "");
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+
     try {
-      const res = await fetch("?index", {
+      const res = await fetch(buildMainOptimizePostUrl(), {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+      const data = await res.json().catch(() => null);
 
       if (res.ok) {
+        if (isNoImprovementResponse(data)) {
+          setToast({
+            message:
+              "No improvement was detected, so FeedPilot did not apply changes or use a free optimization.",
+            type: "info",
+          });
+          setTimeout(() => setToast(null), 3500);
+          return;
+        }
+
+        if (!isAppliedAndRecordedResponse(data)) {
+          setToast({
+            message: "No optimization was applied. Free usage was not consumed.",
+            type: "info",
+          });
+          setTimeout(() => setToast(null), 3500);
+          return;
+        }
+
         const successCount = 1;
         const message = buildStarterSuccessText(successCount);
         setToast({ message, type: "success" });
+        setStarterOptimized(true);
         setLastSuccessNotice(`${message}. View the result in history below.`);
         window.sessionStorage.setItem(
           "feedpilotLastSuccess",
@@ -1134,7 +1215,7 @@ No immediate manual action needed right now.`);
         setTimeout(() => window.location.reload(), 1200);
       } else {
   setToast({
-  message: "Optimization failed",
+  message: data?.error || "Optimization failed. Please try again.",
   type: "error",
 });
 setTimeout(() => setToast(null), 2000);
@@ -1142,16 +1223,17 @@ setTimeout(() => setToast(null), 2000);
     } catch (error) {
       console.error(error);
       setToast({
-  message: "Network error",
+  message:
+    (error as Error)?.name === "AbortError"
+      ? "Optimization timed out. Please try again."
+      : "Optimization failed. Please try again.",
   type: "error",
 });
 setTimeout(() => setToast(null), 2000);
     } finally {
+      window.clearTimeout(timeoutId);
       setOptimizingId("");
-      setTimeout(() => {
-        setStarterOptimizing(false);
-        setStarterOptimized(false);
-      }, 1000);
+      setStarterOptimizing(false);
     }
   }}
   style={{
@@ -1166,11 +1248,7 @@ setTimeout(() => setToast(null), 2000);
     opacity: starterOptimizing ? 0.7 : 1,
   }}
 >
-  {starterOptimizing
-    ? starterOptimized
-      ? "Optimized"
-      : "Optimizing..."
-    : "Optimize Now"}
+  {starterOptimizing ? "Optimizing..." : "Optimize Now"}
 </button>
 
                   <button
