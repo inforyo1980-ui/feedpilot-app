@@ -107,14 +107,14 @@ export async function getWeeklyInsight(shopDomain: string) {
 
   const topProducts = applied
     .slice()
-    .sort((a, b) => (b.impactDelta ?? 0) - (a.impactDelta ?? 0))
+    .sort((a, b) => getLiftForSorting(b) - getLiftForSorting(a))
     .slice(0, 5)
     .map((item) => ({
       id: item.id,
       productId: item.productId,
       titleBefore: item.productTitleBefore,
       titleAfter: item.productTitleAfter,
-      impactDelta: item.impactDelta ?? 0,
+      impactDelta: item.impactDelta,
       seoScoreBefore: item.seoScoreBefore,
       seoScoreAfter: item.seoScoreAfter,
       createdAt: item.createdAt,
@@ -148,6 +148,15 @@ function deriveImpactDelta(
 ): number | null {
   if (!isNumber(before) || !isNumber(after)) return null;
   return after - before;
+}
+
+function getLiftForSorting(item: {
+  impactDelta: number | null;
+  seoScoreBefore: number | null;
+  seoScoreAfter: number | null;
+}) {
+  if (isNumber(item.impactDelta)) return item.impactDelta;
+  return deriveImpactDelta(item.seoScoreBefore, item.seoScoreAfter) ?? 0;
 }
 
 function average(values: number[]) {

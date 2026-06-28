@@ -28,7 +28,7 @@ type WeeklyInsight = {
     productId: string;
     titleBefore: string;
     titleAfter: string;
-    impactDelta: number;
+    impactDelta: number | null;
     seoScoreBefore: number | null;
     seoScoreAfter: number | null;
     createdAt: string;
@@ -139,7 +139,7 @@ export function OptimizationHistoryPanel(props: {
                         fontWeight: 700,
                       }}
                     >
-                      {formatLift(item)}
+                      {formatExactLift(item)}
                     </div>
                   </div>
 
@@ -216,9 +216,8 @@ export function OptimizationHistoryPanel(props: {
 function HistoryScoreGrid({ item }: { item: HistoryItem }) {
   const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
   const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
-  const delta = before !== null && after !== null ? after - before : null;
+  const delta = getExactLift(item);
   const isLegacyRecord = before === null;
-  const estimatedLift = !isLegacyRecord && isEstimatedLift(item);
 
   return (
     <div>
@@ -239,7 +238,6 @@ function HistoryScoreGrid({ item }: { item: HistoryItem }) {
           label="Lift"
           value={delta}
           unavailableLabel="Not tracked"
-          displayValue={estimatedLift ? "+40+" : undefined}
           signed
         />
       </div>
@@ -306,20 +304,20 @@ function MetricCard(props: { label: string; value: number }) {
   );
 }
 
-function formatLift(item: ScoreLiftItem) {
-  if (isEstimatedLift(item)) return "+40+";
-
-  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
-  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
-  const delta =
-    before !== null && after !== null
-      ? after - before
-      : isFiniteNumber(item.impactDelta)
-        ? item.impactDelta
-        : null;
+function formatExactLift(item: ScoreLiftItem) {
+  const delta = getExactLift(item);
   if (delta === null) return "Not tracked";
 
   return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
+function getExactLift(item: ScoreLiftItem) {
+  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
+
+  if (before === null || after === null) return null;
+
+  return isFiniteNumber(item.impactDelta) ? item.impactDelta : after - before;
 }
 
 function display(value: number | null | undefined) {
@@ -328,16 +326,6 @@ function display(value: number | null | undefined) {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
-}
-
-function isEstimatedLift(item: ScoreLiftItem) {
-  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
-  const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
-
-  if (before === null || after === null) return false;
-
-  const delta = after - before;
-  return delta > 40 || (before <= 20 && after >= 80);
 }
 
 function formatDate(value: string) {
