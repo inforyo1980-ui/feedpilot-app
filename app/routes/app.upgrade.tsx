@@ -5,11 +5,11 @@ import { authenticate } from "../shopify.server";
 import { getPlanWithDevOverride } from "../utils/plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
+  const { billing, session } = await authenticate.admin(request);
 
   const plan = await getPlanWithDevOverride(request, billing);
 
-  return Response.json({ plan });
+  return Response.json({ plan, shop: session.shop });
 };
 
 type PlanType = "free" | "starter" | "growth";
@@ -136,7 +136,7 @@ function PlanCard({
 
       <div style={{ color: "#444", fontSize: 15, lineHeight: 1.75 }}>
         {descriptionLines.map((line) => (
-          <div key={line}>• {line}</div>
+          <div key={line}>- {line}</div>
         ))}
       </div>
 
@@ -302,8 +302,8 @@ function BottomCompareTable({ plan }: { plan: PlanType }) {
       </div>
 
       <FeatureRow label="Manual optimization" free="Limited" starter="Included" growth="Included" plan={plan} />
-      <FeatureRow label="Weekly automation" free="—" starter="—" growth="Included" plan={plan} />
-      <FeatureRow label="Background optimization" free="—" starter="—" growth="Included" plan={plan} />
+      <FeatureRow label="Weekly automation" free="Not included" starter="Not included" growth="Included" plan={plan} />
+      <FeatureRow label="Background optimization" free="Not included" starter="Not included" growth="Included" plan={plan} />
       <FeatureRow label="Catalog growth loop" free="Preview only" starter="Manual only" growth="Active" plan={plan} />
       <FeatureRow label="Best fit" free="Evaluation" starter="Hands-on usage" growth="Ongoing automation" plan={plan} />
     </div>
@@ -311,9 +311,16 @@ function BottomCompareTable({ plan }: { plan: PlanType }) {
 }
 
 export default function UpgradePage() {
-  const { plan } = useLoaderData<typeof loader>() as { plan: PlanType };
+  const { plan, shop } = useLoaderData<typeof loader>() as {
+    plan: PlanType;
+    shop: string;
+  };
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<"starter" | "growth" | null>(null);
+  const billingSettingsUrl = `https://admin.shopify.com/store/${shop.replace(
+    ".myshopify.com",
+    "",
+  )}/settings/billing`;
 
   const billingSuccess =
     typeof window !== "undefined" &&
@@ -355,6 +362,10 @@ export default function UpgradePage() {
     }
   };
 
+  const handleOpenBillingSettings = () => {
+    open(billingSettingsUrl, "_top");
+  };
+
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "32px 20px 56px" }}>
       <button
@@ -370,7 +381,7 @@ export default function UpgradePage() {
           fontWeight: 600,
         }}
       >
-        ← Back to Dashboard
+        Back to Dashboard
       </button>
 
       {billingSuccess && (
@@ -385,7 +396,7 @@ export default function UpgradePage() {
             fontWeight: 700,
           }}
         >
-          ✅ Subscription activated successfully. Redirecting to dashboard...
+          Subscription activated successfully. Redirecting to dashboard...
         </div>
       )}
 
@@ -509,7 +520,7 @@ export default function UpgradePage() {
             <SectionCard title="Included in Starter" tone="starter">
               <div>
                 <span style={{ color: PLAN_THEME.starter.accent, fontWeight: 700, marginRight: 6 }}>
-                  ● Active
+                  Active
                 </span>
                 Manual optimization is available.
               </div>
@@ -553,7 +564,7 @@ export default function UpgradePage() {
               descriptionLines={[
                 "Current plan: Growth",
                 "Weekly automation is enabled",
-                "You can manage your plan from the app",
+                "Your Growth subscription is managed by Shopify",
               ]}
               buttonLabel="Back to Dashboard"
               onClick={() => navigate("/app")}
@@ -571,7 +582,7 @@ export default function UpgradePage() {
             <SectionCard title="What is active now" tone="growth">
               <div>
                 <span style={{ color: PLAN_THEME.growth.accent, fontWeight: 700, marginRight: 6 }}>
-                  ● Active
+                  Active
                 </span>
                 Weekly automation is enabled.
               </div>
@@ -585,11 +596,27 @@ export default function UpgradePage() {
 
             <SectionCard title="Manage your Growth plan" tone="growth">
               <div>
-                Use the app home to run optimization now and monitor active automation behavior.
+                Your Growth subscription is managed by Shopify.
               </div>
               <div style={{ marginTop: 10 }}>
-                This page stays as a plan status page rather than another sales page.
+                To change, cancel, or review billing, open Shopify Admin / Settings / Billing / App subscriptions.
               </div>
+              <button
+                type="button"
+                onClick={handleOpenBillingSettings}
+                style={{
+                  marginTop: 18,
+                  border: "1px solid #a7f3d0",
+                  background: "#ecfdf5",
+                  color: "#047857",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                Open Shopify Billing Settings
+              </button>
             </SectionCard>
           </div>
         </>
