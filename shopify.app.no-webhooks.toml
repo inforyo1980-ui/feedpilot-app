@@ -2,7 +2,7 @@
 
 client_id = "41f263a6d7f556e486e79887731c4f5a"
 name = "feedpilot-app"
-application_url = "https://example.com"
+application_url = "https://feedpilot-app.onrender.com"
 embedded = true
 
 [build]
@@ -16,4 +16,4 @@ api_version = "2026-04"
 scopes = "write_metaobject_definitions,write_metaobjects,write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://feedpilot-app.onrender.com/api/auth" ]
