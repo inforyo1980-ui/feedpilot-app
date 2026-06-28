@@ -308,33 +308,53 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (!apiKey) {
+    console.error("Manual optimization failed: missing OPENAI_API_KEY", {
+      shopDomain: session.shop,
+      productId,
+    });
+
     return Response.json({ error: "Missing OPENAI_API_KEY" }, { status: 400 });
   }
 
   if (!productId) {
+    console.error("Manual optimization failed: missing productId", {
+      shopDomain: session.shop,
+      formDataKeys: Array.from(formData.keys()),
+    });
+
     return Response.json({ error: "Missing productId" }, { status: 400 });
   }
 
- try {
-  const result = await optimizeProductWithAI({
-    admin,
-    shopDomain: session.shop,
-    productId,
-    title,
-    description,
-    source: "manual",
-    decisionMode: "suggest",
-  });
+  try {
+    const result = await optimizeProductWithAI({
+      admin,
+      shopDomain: session.shop,
+      productId,
+      title,
+      description,
+      source: "manual",
+      decisionMode: "suggest",
+    });
 
-  return Response.json(result);
-} catch (error: any) {
-  return Response.json(
-    {
-      error: error?.message || "Optimization failed",
-    },
-    { status: 400 },
-  );
-}
+    return Response.json(result);
+  } catch (error: any) {
+    console.error("Manual optimization failed", {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      shopDomain: session.shop,
+      productId,
+      titleLength: title.length,
+      descriptionLength: description.length,
+    });
+
+    return Response.json(
+      {
+        error: error?.message || "Optimization failed",
+      },
+      { status: 400 },
+    );
+  }
 };
 
 function pluralize(count: number, singular: string, plural: string) {
