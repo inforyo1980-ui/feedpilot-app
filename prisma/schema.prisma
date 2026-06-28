@@ -9,8 +9,8 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -34,31 +34,31 @@ model Session {
 }
 
 model OptimizationHistory {
-  id                 String   @id @default(cuid())
+  id                 String @id @default(cuid())
   shopDomain         String
   productId          String
   productTitleBefore String
   productTitleAfter  String
 
-  seoScoreBefore     Int?
-  seoScoreAfter      Int?
-  impactDelta        Int?
-  issueCountBefore   Int?
-  issueCountAfter    Int?
+  seoScoreBefore   Int?
+  seoScoreAfter    Int?
+  impactDelta      Int?
+  issueCountBefore Int?
+  issueCountAfter  Int?
 
-  changeType         String   @default("title")
-  source             String   @default("manual")
-  decisionMode       String   @default("suggest")
-  status             String   @default("applied")
+  changeType   String @default("title")
+  source       String @default("manual")
+  decisionMode String @default("suggest")
+  status       String @default("applied")
 
-  whyText            String?
-  outcomeText        String?
-  actionText         String?
-  rawIssuesJson      String?
-  rawDecisionJson    String?
+  whyText         String?
+  outcomeText     String?
+  actionText      String?
+  rawIssuesJson   String?
+  rawDecisionJson String?
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([shopDomain, createdAt(sort: Desc)])
   @@index([shopDomain, productId, createdAt(sort: Desc)])
@@ -67,43 +67,43 @@ model OptimizationHistory {
 }
 
 model AutoOptimizeSettings {
-  id         String   @id @default(cuid())
-  shopDomain String   @unique
-  enabled    Boolean  @default(false)
-  mode       String   @default("suggest")
-  lastRunAt  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  optimizeBelowScore        Int      @default(70)
-optimizeShortTitle        Boolean  @default(true)
-optimizeWeakDescription   Boolean  @default(true)
+  id                      String    @id @default(cuid())
+  shopDomain              String    @unique
+  enabled                 Boolean   @default(false)
+  mode                    String    @default("suggest")
+  lastRunAt               DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  optimizeBelowScore      Int       @default(70)
+  optimizeShortTitle      Boolean   @default(true)
+  optimizeWeakDescription Boolean   @default(true)
 
-prioritizeLowScore        Boolean  @default(true)
-prioritizeWeakDescription Boolean  @default(true)
+  prioritizeLowScore        Boolean @default(true)
+  prioritizeWeakDescription Boolean @default(true)
 
-maxProductsPerRun         Int      @default(5)
-runFrequencyDays          Int      @default(7)
+  maxProductsPerRun Int @default(5)
+  runFrequencyDays  Int @default(7)
 }
 
 model GrowthAutomationRule {
-  id                        String   @id @default(cuid())
-  shopDomain                String   @unique
+  id         String @id @default(cuid())
+  shopDomain String @unique
 
-  optimizeBelowScore        Int      @default(70)
-  optimizeShortTitle        Boolean  @default(true)
-  optimizeWeakDescription   Boolean  @default(true)
-  optimizeNewProductsOnly   Boolean  @default(false)
+  optimizeBelowScore      Int     @default(70)
+  optimizeShortTitle      Boolean @default(true)
+  optimizeWeakDescription Boolean @default(true)
+  optimizeNewProductsOnly Boolean @default(false)
 
-  prioritizeLowScore        Boolean  @default(true)
-  prioritizeNewProducts     Boolean  @default(true)
-  prioritizeWeakDescription Boolean  @default(true)
+  prioritizeLowScore        Boolean @default(true)
+  prioritizeNewProducts     Boolean @default(true)
+  prioritizeWeakDescription Boolean @default(true)
 
-  maxProductsPerRun         Int      @default(10)
-  runMode                   String   @default("suggest") // suggest | auto
-  runFrequencyDays          Int      @default(7)
+  maxProductsPerRun Int    @default(10)
+  runMode           String @default("suggest") // suggest | auto
+  runFrequencyDays  Int    @default(7)
 
-  focusMode                 String   @default("balanced") // seo | conversion | balanced
+  focusMode String @default("balanced") // seo | conversion | balanced
 
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
