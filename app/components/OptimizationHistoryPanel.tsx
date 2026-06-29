@@ -17,6 +17,13 @@ type WeeklyInsight = {
   failedCount: number;
   automatedCount: number;
   manualCount: number;
+  lastWeeklyScanAt?: string | null;
+  productsChecked?: number;
+  issuesFound?: number;
+  fixesApplied?: number;
+  suggestionsWaiting?: number;
+  skippedForSafety?: number;
+  noCriticalIssuesFound?: boolean;
   improvedProducts: number;
   totalImpactDelta: number;
   avgImpactDelta: number;
@@ -66,10 +73,12 @@ export function OptimizationHistoryPanel(props: {
           }}
         >
           <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-            Weekly Insight
+            Growth weekly monitoring report
           </div>
           <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
-            Last 7 days of optimization activity.
+            Weekly monitoring checks the Shopify catalog for SEO, visibility,
+            and product data issues. Safe fixes are applied only when confidence
+            is high; riskier changes stay as suggestions waiting for review.
           </div>
 
           <div
@@ -82,8 +91,10 @@ export function OptimizationHistoryPanel(props: {
               marginBottom: 16,
             }}
           >
-            FeedPilot applied {weeklyInsight.appliedCount} optimizations in the last
-            7 days. Your catalog is improving based on FeedPilot Visibility Score.
+            Last weekly scan: {formatDate(weeklyInsight.lastWeeklyScanAt)}.
+            FeedPilot monitored {weeklyInsight.productsChecked ?? 0} products
+            and found {weeklyInsight.issuesFound ?? 0} issue signals in the last
+            7 days.
           </div>
 
           <div
@@ -93,10 +104,30 @@ export function OptimizationHistoryPanel(props: {
               gap: 12,
             }}
           >
-            <MetricCard label="Applied" value={weeklyInsight.appliedCount} />
-            <MetricCard label="Improved" value={weeklyInsight.improvedProducts} />
-            <MetricCard label="Impact" value={weeklyInsight.totalImpactDelta} />
-            <MetricCard label="Automation" value={weeklyInsight.automatedCount} />
+            <MetricCard
+              label="Products checked"
+              value={weeklyInsight.productsChecked ?? 0}
+            />
+            <MetricCard
+              label="Issues found"
+              value={weeklyInsight.issuesFound ?? 0}
+            />
+            <MetricCard
+              label="Safe fixes applied"
+              value={weeklyInsight.fixesApplied ?? weeklyInsight.appliedCount}
+            />
+            <MetricCard
+              label="Suggestions waiting"
+              value={weeklyInsight.suggestionsWaiting ?? 0}
+            />
+            <MetricCard
+              label="Skipped for safety"
+              value={weeklyInsight.skippedForSafety ?? 0}
+            />
+            <MetricCard
+              label="No critical issues"
+              value={weeklyInsight.noCriticalIssuesFound ? "Yes" : "No"}
+            />
           </div>
 
           <div style={{ marginTop: 18 }}>
@@ -144,8 +175,8 @@ export function OptimizationHistoryPanel(props: {
                   </div>
 
                   <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                    FeedPilot Visibility Score: {display(item.seoScoreBefore)} to{" "}
-                    {display(item.seoScoreAfter)}
+                    FeedPilot Visibility Score: {display(item.seoScoreBefore)}{" "}
+                    to {display(item.seoScoreAfter)}
                   </div>
                 </div>
               ))
@@ -165,12 +196,14 @@ export function OptimizationHistoryPanel(props: {
             Growth Fix History
           </div>
           <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
-            FeedPilot keeps evidence of applied safe fixes, suggestions, and visibility score movement over time.
+            FeedPilot keeps evidence of applied safe fixes, suggestions, and
+            visibility score movement over time.
           </div>
 
           {optimizationHistory.length === 0 ? (
             <div style={{ color: "#6b7280", fontSize: 14 }}>
-              No history yet. The next applied fix or reviewed suggestion will start building your growth evidence record.
+              No history yet. The next applied fix or reviewed suggestion will
+              start building your growth evidence record.
             </div>
           ) : (
             optimizationHistory.map((item) => (
@@ -199,7 +232,9 @@ export function OptimizationHistoryPanel(props: {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+                <div
+                  style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}
+                >
                   {item.source} - {item.status}
                 </div>
 
@@ -214,14 +249,23 @@ export function OptimizationHistoryPanel(props: {
 }
 
 function HistoryScoreGrid({ item }: { item: HistoryItem }) {
-  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const before = isFiniteNumber(item.seoScoreBefore)
+    ? item.seoScoreBefore
+    : null;
   const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
   const delta = getExactLift(item);
   const isLegacyRecord = before === null;
 
   return (
     <div>
-      <div style={{ color: "#374151", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+      <div
+        style={{
+          color: "#374151",
+          fontSize: 12,
+          fontWeight: 700,
+          marginBottom: 6,
+        }}
+      >
         FeedPilot Visibility Score
       </div>
 
@@ -232,8 +276,16 @@ function HistoryScoreGrid({ item }: { item: HistoryItem }) {
           gap: 8,
         }}
       >
-        <HistoryMetric label="Before" value={before} unavailableLabel="Not tracked" />
-        <HistoryMetric label="After" value={after} unavailableLabel="Not tracked" />
+        <HistoryMetric
+          label="Before"
+          value={before}
+          unavailableLabel="Not tracked"
+        />
+        <HistoryMetric
+          label="After"
+          value={after}
+          unavailableLabel="Not tracked"
+        />
         <HistoryMetric
           label="Lift"
           value={delta}
@@ -258,10 +310,18 @@ function HistoryMetric(props: {
   displayValue?: string;
   signed?: boolean;
 }) {
-  const { label, value, unavailableLabel, displayValue, signed = false } = props;
+  const {
+    label,
+    value,
+    unavailableLabel,
+    displayValue,
+    signed = false,
+  } = props;
   const formattedValue =
     displayValue ??
-    (value === null ? unavailableLabel : `${signed && value > 0 ? "+" : ""}${value}`);
+    (value === null
+      ? unavailableLabel
+      : `${signed && value > 0 ? "+" : ""}${value}`);
 
   return (
     <div
@@ -272,7 +332,9 @@ function HistoryMetric(props: {
         padding: "9px 10px",
       }}
     >
-      <div style={{ color: "#6b7280", fontSize: 11, marginBottom: 3 }}>{label}</div>
+      <div style={{ color: "#6b7280", fontSize: 11, marginBottom: 3 }}>
+        {label}
+      </div>
       <div
         style={{
           color: value === null ? "#9ca3af" : "#111827",
@@ -286,7 +348,7 @@ function HistoryMetric(props: {
   );
 }
 
-function MetricCard(props: { label: string; value: number }) {
+function MetricCard(props: { label: string; value: number | string }) {
   return (
     <div
       style={{
@@ -312,7 +374,9 @@ function formatExactLift(item: ScoreLiftItem) {
 }
 
 function getExactLift(item: ScoreLiftItem) {
-  const before = isFiniteNumber(item.seoScoreBefore) ? item.seoScoreBefore : null;
+  const before = isFiniteNumber(item.seoScoreBefore)
+    ? item.seoScoreBefore
+    : null;
   const after = isFiniteNumber(item.seoScoreAfter) ? item.seoScoreAfter : null;
 
   if (before === null || after === null) return null;
@@ -328,7 +392,8 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function formatDate(value: string) {
+function formatDate(value?: string | null) {
+  if (!value) return "Not run yet";
   const date = new Date(value);
   return date.toLocaleDateString("en-US", {
     month: "short",

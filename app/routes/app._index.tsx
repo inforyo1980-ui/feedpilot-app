@@ -456,8 +456,26 @@ function buildStarterSuccessText(count: number) {
 }
 
 function buildGrowthSuccessText(count: number) {
-  return `Auto-optimized ${count} product${count > 1 ? "s" : ""} successfully`;
+  return `Weekly monitoring applied ${count} safe fix${count === 1 ? "" : "es"}`;
 }
+
+type GrowthAutomationReport = {
+  status:
+    | "completed"
+    | "completed_with_suggestions"
+    | "no_critical_issues"
+    | "failed";
+  productsChecked: number;
+  issuesFound: number;
+  criticalIssues: number;
+  warnings: number;
+  opportunities: number;
+  fixesApplied: number;
+  suggestionsCreated: number;
+  skippedForSafety: number;
+  summary: string;
+  topIssues: Array<{ title: string; severity: string; productTitle?: string }>;
+};
 
 type GrowthAutoRunStatus =
   | {
@@ -472,6 +490,10 @@ type GrowthAutoRunStatus =
         | "no_opportunities"
         | "no_changes"
         | "optimized"
+        | "completed"
+        | "completed_with_suggestions"
+        | "no_critical_issues"
+        | "failed"
         | "server_error";
       message?: string;
       optimizedCount?: number;
@@ -479,6 +501,7 @@ type GrowthAutoRunStatus =
       nextRunAt?: string;
       remainingHours?: number;
       runFrequencyDays?: number;
+      report?: GrowthAutomationReport;
     };
 
 function formatAutoRunDate(value?: string) {
@@ -495,7 +518,11 @@ function formatAutoRunDate(value?: string) {
 function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
   if (status.status === "checking") return status.message;
 
-  if (status.status === "optimized") {
+  if (
+    status.status === "optimized" ||
+    status.status === "completed" ||
+    status.status === "completed_with_suggestions"
+  ) {
     const count = status.optimizedCount ?? status.successCount ?? 0;
     return buildGrowthSuccessText(count);
   }
@@ -516,8 +543,15 @@ function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
     return "No priority growth opportunities were found right now; the catalog health report is available below.";
   }
 
+  if (status.status === "no_critical_issues") {
+    return (
+      status.report?.summary ||
+      "Weekly monitoring checked your catalog and found no critical issues."
+    );
+  }
+
   if (status.status === "no_changes") {
-    return "Weekly monitoring ran and produced a healthy report with no safe automatic fixes needed.";
+    return "Weekly monitoring ran and produced a report with no safe automatic fixes needed.";
   }
 
   if (status.status === "disabled") {
@@ -528,7 +562,12 @@ function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
 }
 
 function getGrowthAutoRunTone(status: GrowthAutoRunStatus["status"]) {
-  if (status === "optimized") {
+  if (
+    status === "optimized" ||
+    status === "completed" ||
+    status === "completed_with_suggestions" ||
+    status === "no_critical_issues"
+  ) {
     return {
       background: "#ecfdf5",
       border: "#a7f3d0",
@@ -550,6 +589,24 @@ function getGrowthAutoRunTone(status: GrowthAutoRunStatus["status"]) {
     color: "#374151",
   };
 }
+function MiniReportMetric(props: { label: string; value: number | string }) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.62)",
+        border: "1px solid rgba(16, 185, 129, 0.18)",
+        borderRadius: 8,
+        padding: "8px 10px",
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#047857" }}>
+        {props.label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 900 }}>{props.value}</div>
+    </div>
+  );
+}
+
 export default function Index() {
   const {
     snapshot,
@@ -701,6 +758,7 @@ export default function Index() {
         nextRunAt: result?.nextRunAt,
         remainingHours: result?.remainingHours,
         runFrequencyDays: result?.runFrequencyDays,
+        report: result?.report,
       };
 
       setGrowthAutoRunStatus(status);
@@ -709,14 +767,21 @@ export default function Index() {
       setToast({
         message,
         type:
-          status.status === "optimized"
+          status.status === "optimized" ||
+          status.status === "completed" ||
+          status.status === "completed_with_suggestions" ||
+          status.status === "no_critical_issues"
             ? "success"
             : status.status === "server_error"
               ? "error"
               : "info",
       });
 
-      if (status.status === "optimized") {
+      if (
+        status.status === "optimized" ||
+        status.status === "completed" ||
+        status.status === "completed_with_suggestions"
+      ) {
         setLastSuccessNotice(`${message}. View the result in history below.`);
         window.sessionStorage.setItem(
           "feedpilotLastSuccess",
@@ -895,7 +960,8 @@ export default function Index() {
             </div>
 
             <div style={{ marginTop: 8, color: "#0a7" }}>
-              <b>Recommended action:</b> Review SEO health, missing data, and safe AI suggestions.
+              <b>Recommended action:</b> Review SEO health, missing data, and
+              safe AI suggestions.
             </div>
           </div>
 
@@ -1504,10 +1570,11 @@ No immediate manual action needed right now.`);
             lineHeight: 1.7,
           }}
         >
-          <b>{opportunityCount} growth opportunities detected.</b> Free
-          plan lets you discover gaps and test {FREE_OPTIMIZATION_LIMIT} products every{" "}
-          {FREE_OPTIMIZATION_WINDOW_DAYS} days. The remaining opportunities will
-          stay unresolved unless you upgrade to unlock full issue visibility, manual fixes, and weekly monitoring.
+          <b>{opportunityCount} growth opportunities detected.</b> Free plan
+          lets you discover gaps and test {FREE_OPTIMIZATION_LIMIT} products
+          every {FREE_OPTIMIZATION_WINDOW_DAYS} days. The remaining
+          opportunities will stay unresolved unless you upgrade to unlock full
+          issue visibility, manual fixes, and weekly monitoring.
         </div>
       )}
 
@@ -1524,9 +1591,9 @@ No immediate manual action needed right now.`);
             lineHeight: 1.7,
           }}
         >
-          <b>Starter is active.</b> Manual product growth fixes are unlocked. Upgrade to
-          Growth when you want FeedPilot to continue improving your catalog in
-          the background every week.
+          <b>Starter is active.</b> Manual product growth fixes are unlocked.
+          Upgrade to Growth when you want FeedPilot to continue improving your
+          catalog in the background every week.
         </div>
       )}
 
@@ -1763,7 +1830,8 @@ No immediate manual action needed right now.`);
               color: "#666",
             }}
           >
-            No urgent growth opportunities found. Your report is still available through catalog health and history.
+            No urgent growth opportunities found. Your report is still available
+            through catalog health and history.
           </div>
         ) : (
           topOpportunities.map((product, index) =>
@@ -2004,9 +2072,12 @@ No immediate manual action needed right now.`);
           background: "#fff",
         }}
       >
-        <h2 style={{ marginTop: 0, marginBottom: 8 }}>Product SEO & Catalog Health</h2>
+        <h2 style={{ marginTop: 0, marginBottom: 8 }}>
+          Product SEO & Catalog Health
+        </h2>
         <p style={{ color: "#666", marginTop: 0, marginBottom: 14 }}>
-          Products are grouped by SEO health, visibility signals, and catalog completeness readiness.
+          Products are grouped by SEO health, visibility signals, and catalog
+          completeness readiness.
         </p>
 
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
@@ -2080,21 +2151,57 @@ No immediate manual action needed right now.`);
             <div style={{ fontWeight: 800, marginBottom: 4 }}>
               {growthAutoRunStatus.status === "checking"
                 ? "Checking weekly monitoring"
-                : growthAutoRunStatus.status === "optimized"
+                : growthAutoRunStatus.status === "optimized" ||
+                    growthAutoRunStatus.status === "completed" ||
+                    growthAutoRunStatus.status ===
+                      "completed_with_suggestions" ||
+                    growthAutoRunStatus.status === "no_critical_issues"
                   ? "Weekly monitoring complete"
                   : growthAutoRunStatus.status === "cooldown"
                     ? "Weekly monitoring on cooldown"
-                    : growthAutoRunStatus.status === "server_error"
+                    : growthAutoRunStatus.status === "server_error" ||
+                        growthAutoRunStatus.status === "failed"
                       ? "Weekly monitoring error"
                       : "Weekly monitoring status"}
             </div>
             <div>{buildGrowthAutoRunMessage(growthAutoRunStatus)}</div>
-            {growthAutoRunStatus.status === "optimized" && (
-              <div style={{ marginTop: 4 }}>
-                Optimized count:{" "}
-                {growthAutoRunStatus.optimizedCount ??
-                  growthAutoRunStatus.successCount ??
-                  0}
+            {"report" in growthAutoRunStatus && growthAutoRunStatus.report && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: 8,
+                  marginTop: 10,
+                }}
+              >
+                <MiniReportMetric
+                  label="Products checked"
+                  value={growthAutoRunStatus.report.productsChecked}
+                />
+                <MiniReportMetric
+                  label="Issues found"
+                  value={growthAutoRunStatus.report.issuesFound}
+                />
+                <MiniReportMetric
+                  label="Safe fixes applied"
+                  value={growthAutoRunStatus.report.fixesApplied}
+                />
+                <MiniReportMetric
+                  label="Suggestions waiting"
+                  value={growthAutoRunStatus.report.suggestionsCreated}
+                />
+                <MiniReportMetric
+                  label="Skipped for safety"
+                  value={growthAutoRunStatus.report.skippedForSafety}
+                />
+                <MiniReportMetric
+                  label="No critical issues"
+                  value={
+                    growthAutoRunStatus.report.criticalIssues === 0
+                      ? "Yes"
+                      : "No"
+                  }
+                />
               </div>
             )}
             {growthAutoRunStatus.status === "cooldown" && (
@@ -2160,7 +2267,9 @@ No immediate manual action needed right now.`);
               maxWidth: 720,
             }}
           >
-            Starter gives you manual product growth fixes with full issue visibility. Upgrade to Growth when you want weekly monitoring, safe auto-fix, and reports.
+            Starter gives you manual product growth fixes with full issue
+            visibility. Upgrade to Growth when you want weekly monitoring, safe
+            auto-fix, and reports.
           </div>
 
           <div
@@ -2229,7 +2338,8 @@ No immediate manual action needed right now.`);
               maxWidth: 760,
             }}
           >
-            Manual product growth fixes are working. Growth adds weekly monitoring, safe auto-fix, and an automation history.
+            Manual product growth fixes are working. Growth adds weekly
+            monitoring, safe auto-fix, and an automation history.
           </div>
           <button
             onClick={() => goToUpgrade("post_insight_cta")}
