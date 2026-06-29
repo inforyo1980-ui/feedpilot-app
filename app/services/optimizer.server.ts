@@ -9,7 +9,8 @@ type OptimizeProductArgs = {
   description: string;
   seoScoreBefore?: number | null;
   source: "manual" | "automation";
-  decisionMode?: string;
+  decisionMode?: "suggest" | "auto";
+  canApply?: boolean;
 };
 
 export async function optimizeProductWithAI({
@@ -21,6 +22,7 @@ export async function optimizeProductWithAI({
   seoScoreBefore,
   source,
   decisionMode = "suggest",
+  canApply = true,
 }: OptimizeProductArgs) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -38,15 +40,15 @@ export async function optimizeProductWithAI({
   const proxyUrl = process.env.OPENAI_PROXY_URL;
 
   const client = new OpenAI({
-  apiKey,
-  timeout: 120000,
-  maxRetries: 1,
-  fetchOptions: proxyUrl
-    ? {
-        dispatcher: new undici.ProxyAgent(proxyUrl),
-      }
-    : undefined,
-});
+    apiKey,
+    timeout: 120000,
+    maxRetries: 1,
+    fetchOptions: proxyUrl
+      ? {
+          dispatcher: new undici.ProxyAgent(proxyUrl),
+        }
+      : undefined,
+  });
 
   const completion = await client.chat.completions.create({
     model: "gpt-4o-mini",
@@ -113,26 +115,90 @@ Description: ${description}
       ? seoScoreBefore
       : calculateSeoScore(title, description);
   const seoScoreAfter = calculateSeoScore(titleAfter, descriptionAfter);
-console.log("SEO SCORE CHECK:", {
-  seoScoreBefore: resolvedSeoScoreBefore,
-  seoScoreAfter,
-});
-
-if (seoScoreAfter <= resolvedSeoScoreBefore) {
-  console.log("⛔ SKIP: no improvement");
-
-  return {
-    ok: true,
-    applied: false,
-    recorded: false,
-    skipped: true,
-    reason: "no_improvement",
-    status: "no_improvement",
-    productId,
+  console.log("SEO SCORE CHECK:", {
     seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
-  };
-}
+  });
+
+  const buildGrowthReport = ({
+    resultType,
+    summary,
+    recommendedAction,
+    upgradeRequired = false,
+  }: {
+    resultType: "APPLIED" | "SUGGESTION_ONLY" | "NO_CRITICAL_ISSUE_WITH_REPORT";
+    summary: string;
+    recommendedAction: string;
+    upgradeRequired?: boolean;
+  }) => ({
+    resultType,
+    productId,
+    summary,
+    impactSummary: parsed.impact_summary || summary,
+    recommendedAction,
+    upgradeRequired,
+    usageConsumed: resultType === "APPLIED",
+    seoScoreBefore: resolvedSeoScoreBefore,
+    seoScoreAfter,
+    suggestedTitle: titleAfter,
+    suggestedDescription: descriptionAfter,
+  });
+
+  if (seoScoreAfter <= resolvedSeoScoreBefore) {
+    console.log("⛔ SKIP: no improvement");
+
+    const growthReport = buildGrowthReport({
+      resultType: "NO_CRITICAL_ISSUE_WITH_REPORT",
+      summary:
+        "FeedPilot reviewed this product and did not find a safe critical improvement to apply automatically.",
+      recommendedAction:
+        "Keep monitoring this product. Review the suggested copy only if it matches your merchandising strategy.",
+    });
+
+    return {
+      ok: true,
+      resultType: growthReport.resultType,
+      growthReport,
+      usageConsumed: false,
+      applied: false,
+      recorded: false,
+      skipped: true,
+      reason: "no_improvement",
+      status: "no_improvement",
+      productId,
+      seoScoreBefore: resolvedSeoScoreBefore,
+      seoScoreAfter,
+    };
+  }
+
+  if (!canApply) {
+    const growthReport = buildGrowthReport({
+      resultType: "SUGGESTION_ONLY",
+      summary:
+        "FeedPilot found a product growth opportunity, but applying the safe fix requires an upgraded plan.",
+      recommendedAction:
+        "Upgrade to Starter to apply this optimization manually, or use Growth for ongoing safe automation.",
+      upgradeRequired: true,
+    });
+
+    return {
+      ok: true,
+      resultType: growthReport.resultType,
+      growthReport,
+      usageConsumed: false,
+      applied: false,
+      recorded: false,
+      skipped: true,
+      reason: "upgrade_required",
+      status: "upgrade_required",
+      code: "FREE_LIMIT_REACHED",
+      upgradeUrl: "/app/upgrade?reason=free_limit",
+      productId,
+      seoScoreBefore: resolvedSeoScoreBefore,
+      seoScoreAfter,
+    };
+  }
+
   const appliedResult = await applyOptimizedTitleAndRecord({
     admin,
     shopDomain,
@@ -155,8 +221,18 @@ if (seoScoreAfter <= resolvedSeoScoreBefore) {
     decisionMode,
   });
 
+  const growthReport = buildGrowthReport({
+    resultType: "APPLIED",
+    summary: "FeedPilot applied a safe product SEO improvement.",
+    recommendedAction:
+      "Review the updated product in Shopify and monitor the internal visibility score over time.",
+  });
+
   return {
     ok: true,
+    resultType: growthReport.resultType,
+    growthReport,
+    usageConsumed: true,
     applied: true,
     recorded: Boolean(appliedResult?.history?.id),
     history: appliedResult?.history ?? null,

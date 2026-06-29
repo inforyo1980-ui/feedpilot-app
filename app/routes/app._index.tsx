@@ -278,6 +278,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const plan = await getPlan(billing);
 
+  let freeQuotaExhausted = false;
+
   if (plan === "free") {
     const freeWindowStart = new Date();
     freeWindowStart.setDate(
@@ -296,14 +298,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     if (manualOptimizationCount >= FREE_OPTIMIZATION_LIMIT) {
-      return Response.json(
-        {
-          error: "Free limit reached. Upgrade to Starter.",
-          code: "FREE_LIMIT_REACHED",
-          upgradeUrl: "/app/upgrade?reason=free_limit",
-        },
-        { status: 403 },
-      );
+      freeQuotaExhausted = true;
     }
   }
 
@@ -313,7 +308,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       productId,
     });
 
-    return Response.json({ error: "Missing OPENAI_API_KEY" }, { status: 400 });
+    const growthReport = {
+      resultType: "SUGGESTION_ONLY",
+      productId,
+      summary:
+        "FeedPilot could not generate a per-run growth report because AI configuration is missing.",
+      impactSummary: "AI configuration is missing.",
+      recommendedAction:
+        "Configure OPENAI_API_KEY, then run Optimize Now again.",
+      upgradeRequired: false,
+      usageConsumed: false,
+    };
+
+    return Response.json(
+      {
+        error: "Missing OPENAI_API_KEY",
+        resultType: growthReport.resultType,
+        growthReport,
+        usageConsumed: false,
+      },
+      { status: 400 },
+    );
   }
 
   if (!productId) {
@@ -322,7 +337,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       formDataKeys: Array.from(formData.keys()),
     });
 
-    return Response.json({ error: "Missing productId" }, { status: 400 });
+    const growthReport = {
+      resultType: "SUGGESTION_ONLY",
+      productId,
+      summary:
+        "FeedPilot could not inspect this product because the product ID was missing.",
+      impactSummary: "Product ID was missing.",
+      recommendedAction:
+        "Refresh the dashboard and run Optimize Now from a listed product.",
+      upgradeRequired: false,
+      usageConsumed: false,
+    };
+
+    return Response.json(
+      {
+        error: "Missing productId",
+        resultType: growthReport.resultType,
+        growthReport,
+        usageConsumed: false,
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -334,6 +369,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       description,
       source: "manual",
       decisionMode: "suggest",
+      canApply: !freeQuotaExhausted,
     });
 
     return Response.json(result);
@@ -348,9 +384,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       descriptionLength: description.length,
     });
 
+    const growthReport = {
+      resultType: "SUGGESTION_ONLY",
+      productId,
+      summary: "FeedPilot could not complete this optimization run safely.",
+      impactSummary: error?.message || "Optimization failed",
+      recommendedAction:
+        "Try again. If the issue continues, review this product manually before applying changes.",
+      upgradeRequired: false,
+      usageConsumed: false,
+    };
+
     return Response.json(
       {
         error: error?.message || "Optimization failed",
+        resultType: growthReport.resultType,
+        growthReport,
+        usageConsumed: false,
       },
       { status: 400 },
     );
@@ -454,7 +504,8 @@ function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
     const nextRunAt = formatAutoRunDate(status.nextRunAt);
     return nextRunAt
       ? `Weekly cooldown active. Next optimization available on ${nextRunAt}.`
-      : status.message || "Weekly cooldown active. FeedPilot is still monitoring your catalog.";
+      : status.message ||
+          "Weekly cooldown active. FeedPilot is still monitoring your catalog.";
   }
 
   if (status.status === "no_products") {
@@ -532,11 +583,14 @@ export default function Index() {
     message: string;
     type: "success" | "error" | "info";
   } | null>(null);
-  const [lastSuccessNotice, setLastSuccessNotice] = useState<string | null>(null);
+  const [lastSuccessNotice, setLastSuccessNotice] = useState<string | null>(
+    null,
+  );
   const [optimizingId, setOptimizingId] = useState("");
   const [starterOptimizing, setStarterOptimizing] = useState(false);
   const [starterOptimized, setStarterOptimized] = useState(false);
   const [emptyRunMessage, setEmptyRunMessage] = useState("");
+  const [manualGrowthReport, setManualGrowthReport] = useState<any>(null);
   const [growthAutoRunStatus, setGrowthAutoRunStatus] =
     useState<GrowthAutoRunStatus | null>(null);
   const [upgradeModal, setUpgradeModal] = useState<null | {
@@ -545,7 +599,7 @@ export default function Index() {
     primaryLabel: string;
     reason: string;
   }>(null);
- const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const openUpgradeModal = (
     title: string,
     message: string,
@@ -570,14 +624,25 @@ export default function Index() {
     return `${url.pathname}${url.search}`;
   };
 
-  const isNoImprovementResponse = (data: any) =>
-    data?.skipped === true ||
-    data?.applied === false ||
-    data?.recorded === false ||
-    data?.status === "no_improvement";
+  const getGrowthReport = (data: any) => data?.growthReport ?? null;
+
+  const isReportOnlyResponse = (data: any) =>
+    data?.resultType === "SUGGESTION_ONLY" ||
+    data?.resultType === "NO_CRITICAL_ISSUE_WITH_REPORT";
 
   const isAppliedAndRecordedResponse = (data: any) =>
-    data?.applied === true && data?.recorded === true;
+    data?.resultType === "APPLIED" &&
+    data?.applied === true &&
+    data?.recorded === true;
+
+  const showManualGrowthReport = (data: any) => {
+    const growthReport = getGrowthReport(data);
+    if (growthReport) {
+      setManualGrowthReport(growthReport);
+      setEmptyRunMessage("");
+    }
+    return growthReport;
+  };
 
   const handleDevPlanSwitch = async (
     selectedPlanOrEmpty: "" | "free" | "starter" | "growth",
@@ -718,8 +783,7 @@ export default function Index() {
 
     const highImpact = snapshot.topPriorityOpportunities.filter(
       (p) =>
-        p.severity === "opportunity" &&
-        p.primaryIssue !== "softOpportunity",
+        p.severity === "opportunity" && p.primaryIssue !== "softOpportunity",
     );
 
     return [...critical.slice(0, 1), ...highImpact.slice(0, 2)];
@@ -857,7 +921,9 @@ export default function Index() {
             }}
             onClick={() => onOptimize(product)}
           >
-            {optimizingId === product.id ? "Improving..." : "Improve Visibility"}
+            {optimizingId === product.id
+              ? "Improving..."
+              : "Improve Visibility"}
           </button>
         </div>
       </div>
@@ -871,39 +937,39 @@ export default function Index() {
   return (
     <div style={{ padding: 24, background: "#f6f7f8", minHeight: "100vh" }}>
       {toast && (
-  <div
-    style={{
-      position: "fixed",
-      top: 20,
-      right: 20,
-      padding: "12px 16px",
-      borderRadius: 10,
-      background:
-        toast.type === "success"
-          ? "#ecfdf5"
-          : toast.type === "error"
-          ? "#fef2f2"
-          : "#f3f4f6",
-      color:
-        toast.type === "success"
-          ? "#065f46"
-          : toast.type === "error"
-          ? "#991b1b"
-          : "#111827",
-      border:
-        toast.type === "success"
-          ? "1px solid #6ee7b7"
-          : toast.type === "error"
-          ? "1px solid #fecaca"
-          : "1px solid #e5e7eb",
-      fontWeight: 600,
-      zIndex: 9999,
-      boxShadow: "0 10px 24px rgba(15,23,42,0.12)",
-    }}
-  >
-    {toast.message}
-  </div>
-)}
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            right: 20,
+            padding: "12px 16px",
+            borderRadius: 10,
+            background:
+              toast.type === "success"
+                ? "#ecfdf5"
+                : toast.type === "error"
+                  ? "#fef2f2"
+                  : "#f3f4f6",
+            color:
+              toast.type === "success"
+                ? "#065f46"
+                : toast.type === "error"
+                  ? "#991b1b"
+                  : "#111827",
+            border:
+              toast.type === "success"
+                ? "1px solid #6ee7b7"
+                : toast.type === "error"
+                  ? "1px solid #fecaca"
+                  : "1px solid #e5e7eb",
+            fontWeight: 600,
+            zIndex: 9999,
+            boxShadow: "0 10px 24px rgba(15,23,42,0.12)",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
 
       <div style={{ marginBottom: 24 }}>
         <div
@@ -987,20 +1053,20 @@ export default function Index() {
             )}
 
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
-  {plan === "growth"
-  ? "Automation is active"
-  : plan === "starter"
-  ? "Manual optimization is active"
-  : "Start improving product visibility"}
-</div>
+              {plan === "growth"
+                ? "Automation is active"
+                : plan === "starter"
+                  ? "Manual optimization is active"
+                  : "Start improving product visibility"}
+            </div>
 
             <div style={{ fontSize: 14, color: "#666", marginBottom: 14 }}>
-  {plan === "growth"
-  ? "FeedPilot is monitoring and improving your catalog every week."
-  : plan === "starter"
-  ? "Optimize weak listings manually now, then move to Growth when you want the work automated."
-  : "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility."}
-</div>
+              {plan === "growth"
+                ? "FeedPilot is monitoring and improving your catalog every week."
+                : plan === "starter"
+                  ? "Optimize weak listings manually now, then move to Growth when you want the work automated."
+                  : "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility."}
+            </div>
             {plan !== "growth" && (
               <div
                 style={{
@@ -1022,254 +1088,277 @@ export default function Index() {
                 marginBottom: 10,
               }}
             >
-      {plan === "free" && (
-  <>
-    <button
-      type="button"
-      disabled={starterOptimizing}
-      onClick={async () => {
-        if (freeLimitReached) {
-          goToUpgrade("hero_free_limit_primary");
-          return;
-        }
+              {plan === "free" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={starterOptimizing}
+                    onClick={async () => {
+                      setStarterOptimizing(true);
+                      setStarterOptimized(false);
 
-        setStarterOptimizing(true);
-        setStarterOptimized(false);
+                      const queue = snapshot.products.filter(
+                        (p: ProductScanResult) =>
+                          p.optimizationReasons.length > 0,
+                      );
 
-        const queue = snapshot.products.filter(
-          (p: ProductScanResult) => p.optimizationReasons.length > 0,
-        );
-
-        if (queue.length === 0) {
-          setEmptyRunMessage(`Your catalog is stable.
+                      if (queue.length === 0) {
+                        setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
-          setStarterOptimizing(false);
-          return;
-        }
+                        setStarterOptimizing(false);
+                        return;
+                      }
 
-        const product = queue[0];
-        setOptimizingId(product.id);
+                      const product = queue[0];
+                      setOptimizingId(product.id);
 
-        const formData = new FormData();
-        formData.append("title", product.title);
-        formData.append("productId", product.id);
-        formData.append("description", product.descriptionHtml || "");
+                      const formData = new FormData();
+                      formData.append("title", product.title);
+                      formData.append("productId", product.id);
+                      formData.append(
+                        "description",
+                        product.descriptionHtml || "",
+                      );
 
-        const controller = new AbortController();
-        const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+                      const controller = new AbortController();
+                      const timeoutId = window.setTimeout(
+                        () => controller.abort(),
+                        30000,
+                      );
 
-        try {
-          const res = await fetch(buildMainOptimizePostUrl(), {
-            method: "POST",
-            body: formData,
-            signal: controller.signal,
-          });
+                      try {
+                        const res = await fetch(buildMainOptimizePostUrl(), {
+                          method: "POST",
+                          body: formData,
+                          signal: controller.signal,
+                        });
 
-          const data = await res.json().catch(() => null);
+                        const data = await res.json().catch(() => null);
 
-          if (res.ok) {
-            if (isNoImprovementResponse(data)) {
-              setToast({
-                message:
-                  "No improvement was detected, so FeedPilot did not apply changes or use a free optimization.",
-                type: "info",
-              });
-              setTimeout(() => setToast(null), 3500);
-              return;
-            }
+                        if (res.ok) {
+                          if (isReportOnlyResponse(data)) {
+                            const growthReport = showManualGrowthReport(data);
+                            setToast({
+                              message: growthReport?.upgradeRequired
+                                ? "Upgrade required to apply this recommendation. Free usage was not consumed."
+                                : "FeedPilot prepared a growth report. No usage was consumed.",
+                              type: "info",
+                            });
+                            setTimeout(() => setToast(null), 3500);
+                            return;
+                          }
 
-            if (!isAppliedAndRecordedResponse(data)) {
-              setToast({
-                message: "No optimization was applied. Free usage was not consumed.",
-                type: "info",
-              });
-              setTimeout(() => setToast(null), 3500);
-              return;
-            }
+                          if (!isAppliedAndRecordedResponse(data)) {
+                            showManualGrowthReport(data);
+                            setToast({
+                              message:
+                                "FeedPilot returned a report. Free usage was not consumed.",
+                              type: "info",
+                            });
+                            setTimeout(() => setToast(null), 3500);
+                            return;
+                          }
 
-            setToast({
-              message: "Free optimization completed successfully",
-              type: "success",
-            });
-            setStarterOptimized(true);
+                          setToast({
+                            message: "Free optimization completed successfully",
+                            type: "success",
+                          });
+                          setStarterOptimized(true);
 
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-          } else {
-            setToast({
-              message:
-                data?.error || "Optimization failed. Please try again.",
-              type: "error",
-            });
-            setTimeout(() => setToast(null), 2000);
-          }
-        } catch (error) {
-          console.error(error);
-          setToast({
-            message:
-              (error as Error)?.name === "AbortError"
-                ? "Optimization timed out. Please try again."
-                : "Optimization failed. Please try again.",
-            type: "error",
-          });
-          setTimeout(() => setToast(null), 2000);
-        } finally {
-          window.clearTimeout(timeoutId);
-          setOptimizingId("");
-          setStarterOptimizing(false);
-        }
-      }}
-      style={{
-        padding: "14px 20px",
-        borderRadius: 10,
-        border: "none",
-        background: "#111",
-        color: "#fff",
-        cursor: starterOptimizing ? "not-allowed" : "pointer",
-        fontWeight: 800,
-        fontSize: 15,
-        opacity: starterOptimizing ? 0.7 : 1,
-      }}
-    >
-      {starterOptimizing
-        ? "Optimizing..."
-        : freeLimitReached
-          ? "Unlock Unlimited Optimization"
-          : "Optimize Now"}
-    </button>
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 1000);
+                        } else {
+                          setToast({
+                            message:
+                              data?.error ||
+                              "Optimization failed. Please try again.",
+                            type: "error",
+                          });
+                          setTimeout(() => setToast(null), 2000);
+                        }
+                      } catch (error) {
+                        console.error(error);
+                        setToast({
+                          message:
+                            (error as Error)?.name === "AbortError"
+                              ? "Optimization timed out. Please try again."
+                              : "Optimization failed. Please try again.",
+                          type: "error",
+                        });
+                        setTimeout(() => setToast(null), 2000);
+                      } finally {
+                        window.clearTimeout(timeoutId);
+                        setOptimizingId("");
+                        setStarterOptimizing(false);
+                      }
+                    }}
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "#111",
+                      color: "#fff",
+                      cursor: starterOptimizing ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                      fontSize: 15,
+                      opacity: starterOptimizing ? 0.7 : 1,
+                    }}
+                  >
+                    {starterOptimizing
+                      ? "Optimizing..."
+                      : freeLimitReached
+                        ? "Unlock Unlimited Optimization"
+                        : "Optimize Now"}
+                  </button>
 
-    <button
-      type="button"
-      onClick={() => {
-        setToast({
-          message: `Free plan includes ${FREE_OPTIMIZATION_LIMIT} optimizations every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. You have ${freeRemaining}/${FREE_OPTIMIZATION_LIMIT} left in this window.`,
-          type: "info",
-        });
-        setTimeout(() => setToast(null), 2600);
-      }}
-      style={{
-        padding: "14px 20px",
-        border: "1px solid #d1d5db",
-        borderRadius: 10,
-        background: "#fff",
-        color: "#111",
-        cursor: "pointer",
-        fontWeight: 700,
-        fontSize: 15,
-      }}
-    >
-      Free optimizations left: {freeRemaining}/{FREE_OPTIMIZATION_LIMIT}
-    </button>
-  </>
-)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setToast({
+                        message: `Free plan includes ${FREE_OPTIMIZATION_LIMIT} optimizations every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. You have ${freeRemaining}/${FREE_OPTIMIZATION_LIMIT} left in this window.`,
+                        type: "info",
+                      });
+                      setTimeout(() => setToast(null), 2600);
+                    }}
+                    style={{
+                      padding: "14px 20px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      background: "#fff",
+                      color: "#111",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                  >
+                    Free optimizations left: {freeRemaining}/
+                    {FREE_OPTIMIZATION_LIMIT}
+                  </button>
+                </>
+              )}
 
               {plan === "starter" && (
                 <>
                   <button
-  type="button"
-  disabled={starterOptimizing}
-  onClick={async () => {
-    setStarterOptimizing(true);
-    setStarterOptimized(false);
+                    type="button"
+                    disabled={starterOptimizing}
+                    onClick={async () => {
+                      setStarterOptimizing(true);
+                      setStarterOptimized(false);
 
-    const queue = snapshot.products.filter(
-      (p: ProductScanResult) => p.optimizationReasons.length > 0,
-    );
+                      const queue = snapshot.products.filter(
+                        (p: ProductScanResult) =>
+                          p.optimizationReasons.length > 0,
+                      );
 
-    if (queue.length === 0) {
-      setEmptyRunMessage(`Your catalog is stable.
+                      if (queue.length === 0) {
+                        setEmptyRunMessage(`Your catalog is stable.
 No immediate manual action needed right now.`);
-      setStarterOptimizing(false);
-      return;
-    }
+                        setStarterOptimizing(false);
+                        return;
+                      }
 
-    const product = queue[0];
-    setOptimizingId(product.id);
+                      const product = queue[0];
+                      setOptimizingId(product.id);
 
-    const formData = new FormData();
-    formData.append("title", product.title);
-    formData.append("productId", product.id);
-    formData.append("description", product.descriptionHtml || "");
+                      const formData = new FormData();
+                      formData.append("title", product.title);
+                      formData.append("productId", product.id);
+                      formData.append(
+                        "description",
+                        product.descriptionHtml || "",
+                      );
 
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+                      const controller = new AbortController();
+                      const timeoutId = window.setTimeout(
+                        () => controller.abort(),
+                        30000,
+                      );
 
-    try {
-      const res = await fetch(buildMainOptimizePostUrl(), {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
-      const data = await res.json().catch(() => null);
+                      try {
+                        const res = await fetch(buildMainOptimizePostUrl(), {
+                          method: "POST",
+                          body: formData,
+                          signal: controller.signal,
+                        });
+                        const data = await res.json().catch(() => null);
 
-      if (res.ok) {
-        if (isNoImprovementResponse(data)) {
-          setToast({
-            message:
-              "No improvement was detected, so FeedPilot did not apply changes or use a free optimization.",
-            type: "info",
-          });
-          setTimeout(() => setToast(null), 3500);
-          return;
-        }
+                        if (res.ok) {
+                          if (isReportOnlyResponse(data)) {
+                            const growthReport = showManualGrowthReport(data);
+                            setToast({
+                              message: growthReport?.upgradeRequired
+                                ? "Upgrade required to apply this recommendation. Usage was not consumed."
+                                : "FeedPilot prepared a growth report. Usage was not consumed.",
+                              type: "info",
+                            });
+                            setTimeout(() => setToast(null), 3500);
+                            return;
+                          }
 
-        if (!isAppliedAndRecordedResponse(data)) {
-          setToast({
-            message: "No optimization was applied. Free usage was not consumed.",
-            type: "info",
-          });
-          setTimeout(() => setToast(null), 3500);
-          return;
-        }
+                          if (!isAppliedAndRecordedResponse(data)) {
+                            showManualGrowthReport(data);
+                            setToast({
+                              message:
+                                "FeedPilot returned a report. Usage was not consumed.",
+                              type: "info",
+                            });
+                            setTimeout(() => setToast(null), 3500);
+                            return;
+                          }
 
-        const successCount = 1;
-        const message = buildStarterSuccessText(successCount);
-        setToast({ message, type: "success" });
-        setStarterOptimized(true);
-        setLastSuccessNotice(`${message}. View the result in history below.`);
-        window.sessionStorage.setItem(
-          "feedpilotLastSuccess",
-          `${message}. View the result in history below.`,
-        );
-        setTimeout(() => window.location.reload(), 1200);
-      } else {
-  setToast({
-  message: data?.error || "Optimization failed. Please try again.",
-  type: "error",
-});
-setTimeout(() => setToast(null), 2000);
-}
-    } catch (error) {
-      console.error(error);
-      setToast({
-  message:
-    (error as Error)?.name === "AbortError"
-      ? "Optimization timed out. Please try again."
-      : "Optimization failed. Please try again.",
-  type: "error",
-});
-setTimeout(() => setToast(null), 2000);
-    } finally {
-      window.clearTimeout(timeoutId);
-      setOptimizingId("");
-      setStarterOptimizing(false);
-    }
-  }}
-  style={{
-    padding: "14px 20px",
-    borderRadius: 10,
-    border: "none",
-    background: "#111",
-    color: "#fff",
-    cursor: starterOptimizing ? "not-allowed" : "pointer",
-    fontWeight: 800,
-    fontSize: 15,
-    opacity: starterOptimizing ? 0.7 : 1,
-  }}
->
-  {starterOptimizing ? "Optimizing..." : "Optimize Now"}
-</button>
+                          const successCount = 1;
+                          const message = buildStarterSuccessText(successCount);
+                          setToast({ message, type: "success" });
+                          setStarterOptimized(true);
+                          setLastSuccessNotice(
+                            `${message}. View the result in history below.`,
+                          );
+                          window.sessionStorage.setItem(
+                            "feedpilotLastSuccess",
+                            `${message}. View the result in history below.`,
+                          );
+                          setTimeout(() => window.location.reload(), 1200);
+                        } else {
+                          setToast({
+                            message:
+                              data?.error ||
+                              "Optimization failed. Please try again.",
+                            type: "error",
+                          });
+                          setTimeout(() => setToast(null), 2000);
+                        }
+                      } catch (error) {
+                        console.error(error);
+                        setToast({
+                          message:
+                            (error as Error)?.name === "AbortError"
+                              ? "Optimization timed out. Please try again."
+                              : "Optimization failed. Please try again.",
+                          type: "error",
+                        });
+                        setTimeout(() => setToast(null), 2000);
+                      } finally {
+                        window.clearTimeout(timeoutId);
+                        setOptimizingId("");
+                        setStarterOptimizing(false);
+                      }
+                    }}
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "#111",
+                      color: "#fff",
+                      cursor: starterOptimizing ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                      fontSize: 15,
+                      opacity: starterOptimizing ? 0.7 : 1,
+                    }}
+                  >
+                    {starterOptimizing ? "Optimizing..." : "Optimize Now"}
+                  </button>
 
                   <button
                     type="button"
@@ -1291,61 +1380,69 @@ setTimeout(() => setToast(null), 2000);
               )}
 
               {plan === "growth" && (
-  <>
-    <button
-      type="button"
-      onClick={() => {
-        const historySection = document.getElementById("optimization-history");
-        if (historySection) {
-          historySection.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else {
-          setToast({ message: "Viewing recent optimization activity", type: "info" });
-          setTimeout(() => setToast(null), 1800);
-        }
-      }}
-      style={{
-        padding: "14px 20px",
-        borderRadius: 10,
-        border: "none",
-        background: "#111",
-        color: "#fff",
-        cursor: "pointer",
-        fontWeight: 800,
-        fontSize: 15,
-      }}
-    >
-      View Optimization Activity
-    </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const historySection = document.getElementById(
+                        "optimization-history",
+                      );
+                      if (historySection) {
+                        historySection.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      } else {
+                        setToast({
+                          message: "Viewing recent optimization activity",
+                          type: "info",
+                        });
+                        setTimeout(() => setToast(null), 1800);
+                      }
+                    }}
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "#111",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 800,
+                      fontSize: 15,
+                    }}
+                  >
+                    View Optimization Activity
+                  </button>
 
-    <button
-      type="button"
-      onClick={() => goToUpgrade("manage_plan")}
-      style={{
-        padding: "14px 20px",
-        border: "1px solid #d1d5db",
-        borderRadius: 10,
-        background: "#fff",
-        color: "#111",
-        cursor: "pointer",
-        fontWeight: 700,
-        fontSize: 15,
-      }}
-    >
-      Manage Plan
-    </button>
-  </>
-)}
+                  <button
+                    type="button"
+                    onClick={() => goToUpgrade("manage_plan")}
+                    style={{
+                      padding: "14px 20px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      background: "#fff",
+                      color: "#111",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                  >
+                    Manage Plan
+                  </button>
+                </>
+              )}
             </div>
 
-          {plan !== "growth" && (
-            <div style={{ fontSize: 13, color: "#6b7280" }}>
-              {plan === "starter"
-                ? "Manual optimization is active. Automation is still off."
-                : freeLimitReached
-                  ? `You have used your free optimization allowance. Upgrade to keep improving your catalog.`
-                  : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade to optimize your full catalog and turn this into an ongoing system.`}
-            </div>
-          )}
+            {plan !== "growth" && (
+              <div style={{ fontSize: 13, color: "#6b7280" }}>
+                {plan === "starter"
+                  ? "Manual optimization is active. Automation is still off."
+                  : freeLimitReached
+                    ? `You have used your free optimization allowance. Upgrade to keep improving your catalog.`
+                    : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade to optimize your full catalog and turn this into an ongoing system.`}
+              </div>
+            )}
           </div>
 
           <div
@@ -1383,7 +1480,11 @@ setTimeout(() => setToast(null), 2000);
                 fontWeight: 700,
               }}
             >
-              {plan === "growth" ? "Active" : plan === "starter" ? "Locked" : "Locked"}
+              {plan === "growth"
+                ? "Active"
+                : plan === "starter"
+                  ? "Locked"
+                  : "Locked"}
             </div>
             {plan === "growth" && automationCount > 0 && (
               <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
@@ -1484,6 +1585,56 @@ setTimeout(() => setToast(null), 2000);
         </div>
       )}
 
+      {manualGrowthReport && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "14px 16px",
+            border: "1px solid #bfdbfe",
+            borderRadius: 12,
+            background: "#eff6ff",
+            color: "#1e3a8a",
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>
+            {manualGrowthReport.resultType === "SUGGESTION_ONLY"
+              ? "Product growth suggestion"
+              : manualGrowthReport.resultType ===
+                  "NO_CRITICAL_ISSUE_WITH_REPORT"
+                ? "Product growth report"
+                : "Optimization applied"}
+          </div>
+          <div style={{ fontSize: 13, marginBottom: 6 }}>
+            {manualGrowthReport.summary}
+          </div>
+          <div style={{ fontSize: 13, marginBottom: 6 }}>
+            <b>Recommended action:</b> {manualGrowthReport.recommendedAction}
+          </div>
+          <div style={{ fontSize: 12 }}>
+            Result: {manualGrowthReport.resultType} · Usage consumed:{" "}
+            {manualGrowthReport.usageConsumed ? "yes" : "no"}
+          </div>
+          {manualGrowthReport.upgradeRequired && (
+            <button
+              type="button"
+              onClick={() => goToUpgrade("manual_growth_report_upgrade")}
+              style={{
+                marginTop: 10,
+                padding: "9px 12px",
+                borderRadius: 8,
+                border: "none",
+                background: "#111",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              View upgrade options
+            </button>
+          )}
+        </div>
+      )}
+
       {lastSuccessNotice && (
         <div
           style={{
@@ -1563,12 +1714,12 @@ setTimeout(() => setToast(null), 2000);
         </div>
 
         <div style={{ fontSize: 14, color: "#444", lineHeight: 1.7 }}>
-  {plan === "growth"
-    ? `FeedPilot applied ${appliedThisWeek} optimizations this week and continues monitoring your catalog.`
-    : plan === "starter"
-      ? "Starter keeps manual optimization available. Growth turns the same workflow into a weekly automated system."
-      : "FeedPilot shows which listings are weak and what can be improved next."}
-</div>
+          {plan === "growth"
+            ? `FeedPilot applied ${appliedThisWeek} optimizations this week and continues monitoring your catalog.`
+            : plan === "starter"
+              ? "Starter keeps manual optimization available. Growth turns the same workflow into a weekly automated system."
+              : "FeedPilot shows which listings are weak and what can be improved next."}
+        </div>
       </div>
 
       <div
@@ -1623,68 +1774,83 @@ setTimeout(() => setToast(null), 2000);
         ) : (
           topOpportunities.map((product, index) =>
             renderCompactOpportunityCard(product, index, async (product) => {
-                if (plan === "free") {
-                  openUpgradeModal(
-  "This product is already losing visibility",
-  "FeedPilot found a weak listing that can be improved now. Free lets you discover the issue, but optimization requires a paid plan. Upgrade to Starter to fix it manually, or Growth to let FeedPilot keep improving products automatically.",
-  "Unlock optimization",
-  "single_optimize_free",
-);
+              if (plan === "free") {
+                openUpgradeModal(
+                  "This product is already losing visibility",
+                  "FeedPilot found a weak listing that can be improved now. Free lets you discover the issue, but optimization requires a paid plan. Upgrade to Starter to fix it manually, or Growth to let FeedPilot keep improving products automatically.",
+                  "Unlock optimization",
+                  "single_optimize_free",
+                );
+                return;
+              }
+
+              if (plan === "starter") {
+                setToast({
+                  message: "Starter manual optimization in progress",
+                  type: "info",
+                });
+                setTimeout(() => setToast(null), 2200);
+              }
+
+              setOptimizingId(product.id);
+
+              const formData = new FormData();
+              formData.append("title", product.title);
+              formData.append("productId", product.id);
+              formData.append("description", product.descriptionHtml || "");
+
+              try {
+                const res = await fetch("?index", {
+                  method: "POST",
+                  body: formData,
+                });
+
+                const data = await res.json().catch(() => null);
+
+                if (res.ok && isReportOnlyResponse(data)) {
+                  const growthReport = showManualGrowthReport(data);
+                  setToast({
+                    message: growthReport?.upgradeRequired
+                      ? "Upgrade required to apply this recommendation. Usage was not consumed."
+                      : "FeedPilot prepared a growth report. Usage was not consumed.",
+                    type: "info",
+                  });
+                  setTimeout(() => setToast(null), 3500);
                   return;
                 }
 
-                if (plan === "starter") {
-                  setToast({ message: "Starter manual optimization in progress", type: "info" });
-                  setTimeout(() => setToast(null), 2200);
-                }
-
-                setOptimizingId(product.id);
-
-                const formData = new FormData();
-                formData.append("title", product.title);
-                formData.append("productId", product.id);
-                formData.append("description", product.descriptionHtml || "");
-
-                try {
-                  const res = await fetch("?index", {
-                    method: "POST",
-                    body: formData,
+                if (res.ok && isAppliedAndRecordedResponse(data)) {
+                  const message =
+                    plan === "growth"
+                      ? "Priority product optimized successfully"
+                      : "Starter optimization completed successfully";
+                  setToast({ message, type: "success" });
+                  setLastSuccessNotice(
+                    `${message}. View the result in history below.`,
+                  );
+                  window.sessionStorage.setItem(
+                    "feedpilotLastSuccess",
+                    `${message}. View the result in history below.`,
+                  );
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 800);
+                } else {
+                  showManualGrowthReport(data);
+                  setToast({
+                    message: data?.error || "Optimization failed",
+                    type: "error",
                   });
-
-                  if (res.status === 403) {
-                    setToast({ message: "Free limit reached. Redirecting to upgrade...", type: "info" });
-                    setTimeout(() => {
-                      goToUpgrade("top_priority_limit");
-                    }, 500);
-                    return;
-                  }
-
-                  if (res.ok) {
-                    const message =
-                      plan === "growth"
-                        ? "Priority product optimized successfully"
-                        : "Starter optimization completed successfully";
-                    setToast({ message, type: "success" });
-                    setLastSuccessNotice(`${message}. View the result in history below.`);
-                    window.sessionStorage.setItem(
-                      "feedpilotLastSuccess",
-                      `${message}. View the result in history below.`,
-                    );
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 800);
-                  } else {
-                    setToast({ message: "Optimization failed", type: "error" });
-                    setTimeout(() => setToast(null), 2000);
-                  }
-                } catch (error) {
-                  console.error(error);
-                  setToast({ message: "Network error", type: "error" });
                   setTimeout(() => setToast(null), 2000);
-                } finally {
-                  setOptimizingId("");
                 }
-              }),
+              } catch (error) {
+                console.error(error);
+                setToast({ message: "Network error", type: "error" });
+                setTimeout(() => setToast(null), 2000);
+              } finally {
+                setOptimizingId("");
+              }
+            }),
           )
         )}
       </div>
@@ -1698,9 +1864,7 @@ setTimeout(() => setToast(null), 2000);
             background:
               plan === "starter" ? STATUS_THEME.starter.softBg : "#f9fafb",
             border: `1px solid ${
-              plan === "starter"
-                ? STATUS_THEME.starter.softBorder
-                : "#e5e7eb"
+              plan === "starter" ? STATUS_THEME.starter.softBorder : "#e5e7eb"
             }`,
           }}
         >
@@ -1758,66 +1922,81 @@ setTimeout(() => setToast(null), 2000);
         ) : (
           growthOpportunities.map((product, index) =>
             renderCompactOpportunityCard(product, index, async (product) => {
-                if (plan === "free") {
-                  openUpgradeModal(
-                    "Upgrade required to optimize this product",
-                    "Free helps you find weak listings, but product optimization is a paid action. Upgrade to Starter for manual optimization or Growth for automatic ongoing optimization.",
-                    "Upgrade now",
-                    "single_optimize_free",
-                  );
+              if (plan === "free") {
+                openUpgradeModal(
+                  "Upgrade required to optimize this product",
+                  "Free helps you find weak listings, but product optimization is a paid action. Upgrade to Starter for manual optimization or Growth for automatic ongoing optimization.",
+                  "Upgrade now",
+                  "single_optimize_free",
+                );
+                return;
+              }
+
+              if (plan === "starter") {
+                setToast({
+                  message: "Starter manual optimization in progress",
+                  type: "info",
+                });
+                setTimeout(() => setToast(null), 2200);
+              }
+
+              setOptimizingId(product.id);
+
+              const formData = new FormData();
+              formData.append("title", product.title);
+              formData.append("productId", product.id);
+              formData.append("description", product.descriptionHtml || "");
+
+              try {
+                const res = await fetch("?index", {
+                  method: "POST",
+                  body: formData,
+                });
+
+                const data = await res.json().catch(() => null);
+
+                if (res.ok && isReportOnlyResponse(data)) {
+                  const growthReport = showManualGrowthReport(data);
+                  setToast({
+                    message: growthReport?.upgradeRequired
+                      ? "Upgrade required to apply this recommendation. Usage was not consumed."
+                      : "FeedPilot prepared a growth report. Usage was not consumed.",
+                    type: "info",
+                  });
+                  setTimeout(() => setToast(null), 3500);
                   return;
                 }
 
-                if (plan === "starter") {
-                  setToast({ message: "Starter manual optimization in progress", type: "info" });
-                  setTimeout(() => setToast(null), 2200);
-                }
-
-                setOptimizingId(product.id);
-
-                const formData = new FormData();
-                formData.append("title", product.title);
-                formData.append("productId", product.id);
-                formData.append("description", product.descriptionHtml || "");
-
-                try {
-                  const res = await fetch("?index", {
-                    method: "POST",
-                    body: formData,
+                if (res.ok && isAppliedAndRecordedResponse(data)) {
+                  const message =
+                    plan === "growth"
+                      ? "Growth opportunity optimized successfully"
+                      : "Starter optimization completed successfully";
+                  setToast({ message, type: "success" });
+                  setLastSuccessNotice(
+                    `${message}. View the result in history below.`,
+                  );
+                  window.sessionStorage.setItem(
+                    "feedpilotLastSuccess",
+                    `${message}. View the result in history below.`,
+                  );
+                  setTimeout(() => window.location.reload(), 800);
+                } else {
+                  showManualGrowthReport(data);
+                  setToast({
+                    message: data?.error || "Optimization failed",
+                    type: "error",
                   });
-
-                  if (res.status === 403) {
-                    setToast({ message: "Free limit reached. Redirecting to upgrade...", type: "info" });
-                    setTimeout(() => {
-                      goToUpgrade("growth_opportunity_limit");
-                    }, 500);
-                    return;
-                  }
-
-                  if (res.ok) {
-                    const message =
-                      plan === "growth"
-                        ? "Growth opportunity optimized successfully"
-                        : "Starter optimization completed successfully";
-                    setToast({ message, type: "success" });
-                    setLastSuccessNotice(`${message}. View the result in history below.`);
-                    window.sessionStorage.setItem(
-                      "feedpilotLastSuccess",
-                      `${message}. View the result in history below.`,
-                    );
-                    setTimeout(() => window.location.reload(), 800);
-                  } else {
-                    setToast({ message: "Optimization failed", type: "error" });
-                    setTimeout(() => setToast(null), 2000);
-                  }
-                } catch (error) {
-                  console.error(error);
-                  setToast({ message: "Network error", type: "error" });
                   setTimeout(() => setToast(null), 2000);
-                } finally {
-                  setOptimizingId("");
                 }
-              }),
+              } catch (error) {
+                console.error(error);
+                setToast({ message: "Network error", type: "error" });
+                setTimeout(() => setToast(null), 2000);
+              } finally {
+                setOptimizingId("");
+              }
+            }),
           )
         )}
       </div>
@@ -1926,7 +2105,8 @@ setTimeout(() => setToast(null), 2000);
             )}
             {growthAutoRunStatus.status === "cooldown" && (
               <div style={{ marginTop: 4 }}>
-                Next available: {formatAutoRunDate(growthAutoRunStatus.nextRunAt)}
+                Next available:{" "}
+                {formatAutoRunDate(growthAutoRunStatus.nextRunAt)}
                 {typeof growthAutoRunStatus.remainingHours === "number"
                   ? ` (${growthAutoRunStatus.remainingHours} hours remaining)`
                   : ""}
@@ -1937,11 +2117,11 @@ setTimeout(() => setToast(null), 2000);
       </div>
 
       <div id="optimization-history">
-  <OptimizationHistoryPanel
-    weeklyInsight={weeklyInsight}
-    optimizationHistory={optimizationHistory}
-  />
-</div>
+        <OptimizationHistoryPanel
+          weeklyInsight={weeklyInsight}
+          optimizationHistory={optimizationHistory}
+        />
+      </div>
 
       {plan === "free" && (
         <div
@@ -2210,7 +2390,9 @@ setTimeout(() => setToast(null), 2000);
                   style={{
                     padding: "8px 10px",
                     borderRadius: 6,
-                    border: isActive ? "1px solid #111827" : "1px solid #d1d5db",
+                    border: isActive
+                      ? "1px solid #111827"
+                      : "1px solid #d1d5db",
                     background: isActive ? "#111827" : "#fff",
                     color: isActive ? "#fff" : "#111827",
                     fontSize: 13,
@@ -2295,65 +2477,70 @@ setTimeout(() => setToast(null), 2000);
           </div>
         </div>
       )}
-{showUpgradeModal && (
-  <div style={{
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 999,
-  }}>
-    <div style={{
-      background: "#fff",
-      padding: 24,
-      borderRadius: 12,
-      width: 420,
-    }}>
-      <h3>You have reached your free optimization limit</h3>
-
-      <p style={{ marginTop: 12 }}>
-        You have fixed your first visibility issues, but more products still need improvement.
-      </p>
-
-      <p style={{ marginTop: 8 }}>
-        Free plan allows 2 optimizations every 7 days.
-        Upgrade to continue optimizing your catalog now.
-      </p>
-
-      <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
-        <button
-          onClick={() => navigate("/app/upgrade")}
+      {showUpgradeModal && (
+        <div
           style={{
-            background: "#111",
-            color: "#fff",
-            padding: "10px 16px",
-            borderRadius: 8,
-            border: "none",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
           }}
         >
-          Unlock Unlimited Optimization
-        </button>
+          <div
+            style={{
+              background: "#fff",
+              padding: 24,
+              borderRadius: 12,
+              width: 420,
+            }}
+          >
+            <h3>You have reached your free optimization limit</h3>
 
-        <button
-          onClick={() => setShowUpgradeModal(false)}
-          style={{
-            background: "#fff",
-            border: "1px solid #ccc",
-            padding: "10px 16px",
-            borderRadius: 8,
-          }}
-        >
-          Maybe later
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <p style={{ marginTop: 12 }}>
+              You have fixed your first visibility issues, but more products
+              still need improvement.
+            </p>
+
+            <p style={{ marginTop: 8 }}>
+              Free plan allows 2 optimizations every 7 days. Upgrade to continue
+              optimizing your catalog now.
+            </p>
+
+            <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
+              <button
+                onClick={() => navigate("/app/upgrade")}
+                style={{
+                  background: "#111",
+                  color: "#fff",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                }}
+              >
+                Unlock Unlimited Optimization
+              </button>
+
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #ccc",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                }}
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
