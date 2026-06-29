@@ -494,6 +494,7 @@ type GrowthAutoRunStatus =
         | "completed_with_suggestions"
         | "no_critical_issues"
         | "failed"
+        | "locked"
         | "server_error";
       message?: string;
       optimizedCount?: number;
@@ -556,6 +557,13 @@ function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
 
   if (status.status === "disabled") {
     return status.message || "Auto optimization is disabled in settings.";
+  }
+
+  if (status.status === "locked") {
+    return (
+      status.message ||
+      "Weekly monitoring is available on the Growth plan. Upgrade to enable safe auto-fix and automation reports."
+    );
   }
 
   return status.message || "Weekly monitoring failed. Please try again.";
@@ -2162,7 +2170,9 @@ No immediate manual action needed right now.`);
                     : growthAutoRunStatus.status === "server_error" ||
                         growthAutoRunStatus.status === "failed"
                       ? "Weekly monitoring error"
-                      : "Weekly monitoring status"}
+                      : growthAutoRunStatus.status === "locked"
+                        ? "Growth plan required"
+                        : "Weekly monitoring status"}
             </div>
             <div>{buildGrowthAutoRunMessage(growthAutoRunStatus)}</div>
             {"report" in growthAutoRunStatus && growthAutoRunStatus.report && (

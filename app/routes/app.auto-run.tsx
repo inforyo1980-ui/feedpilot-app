@@ -1,6 +1,7 @@
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { optimizeProductWithAI } from "../services/optimizer.server";
+import { getPlanWithDevOverride } from "../utils/plan.server";
 import {
   buildGrowthAutomationReport,
   productHasSafeGrowthAutomationFix,
@@ -32,8 +33,24 @@ function buildCooldownResult(lastRunAt: Date, now: Date) {
 }
 
 export const loader = async ({ request }: any) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session, admin, billing } = await authenticate.admin(request);
   const shop = session.shop;
+  const plan = await getPlanWithDevOverride(request, billing);
+
+  if (plan !== "growth") {
+    return Response.json(
+      {
+        result: {
+          status: "locked",
+          ran: false,
+          reason: "growth_plan_required",
+          message:
+            "Weekly monitoring is available on the Growth plan. Upgrade to enable safe auto-fix and automation reports.",
+        },
+      },
+      { status: 403 },
+    );
+  }
 
   try {
     // ======================
