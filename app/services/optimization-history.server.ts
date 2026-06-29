@@ -25,7 +25,7 @@ export type RecordOptimizationHistoryInput = {
 };
 
 export async function recordOptimizationHistory(
-  input: RecordOptimizationHistoryInput
+  input: RecordOptimizationHistoryInput,
 ) {
   return db.optimizationHistory.create({
     data: {
@@ -82,22 +82,25 @@ export async function getWeeklyInsight(shopDomain: string) {
   const applied = items.filter((x) => x.status === "applied");
   const failed = items.filter((x) => x.status === "failed");
   const automated = items.filter((x) => x.source === "automation");
+  const skipped = items.filter((x) => x.status === "skipped");
   const manual = items.filter((x) => x.source === "manual");
 
   const totalImpactDelta = applied.reduce(
     (sum, item) => sum + (item.impactDelta ?? 0),
-    0
+    0,
   );
 
   const avgImpactDelta =
-    applied.length > 0 ? Number((totalImpactDelta / applied.length).toFixed(1)) : 0;
+    applied.length > 0
+      ? Number((totalImpactDelta / applied.length).toFixed(1))
+      : 0;
 
   const avgSeoBefore = average(
-    applied.map((x) => x.seoScoreBefore).filter(isNumber)
+    applied.map((x) => x.seoScoreBefore).filter(isNumber),
   );
 
   const avgSeoAfter = average(
-    applied.map((x) => x.seoScoreAfter).filter(isNumber)
+    applied.map((x) => x.seoScoreAfter).filter(isNumber),
   );
 
   const improvedProducts = applied.filter((x) => {
@@ -127,6 +130,17 @@ export async function getWeeklyInsight(shopDomain: string) {
     failedCount: failed.length,
     automatedCount: automated.length,
     manualCount: manual.length,
+    lastWeeklyScanAt: automated[0]?.createdAt ?? null,
+    productsChecked: new Set(items.map((x) => x.productId)).size,
+    issuesFound: items.reduce(
+      (sum, item) => sum + (item.issueCountBefore ?? 0),
+      0,
+    ),
+    fixesApplied: automated.filter((x) => x.status === "applied").length,
+    suggestionsWaiting: skipped.length,
+    skippedForSafety: skipped.length,
+    noCriticalIssuesFound:
+      items.length > 0 && applied.length === 0 && failed.length === 0,
     improvedProducts,
     totalImpactDelta,
     avgImpactDelta,
@@ -144,7 +158,7 @@ export async function getWeeklyInsight(shopDomain: string) {
 
 function deriveImpactDelta(
   before?: number | null,
-  after?: number | null
+  after?: number | null,
 ): number | null {
   if (!isNumber(before) || !isNumber(after)) return null;
   return after - before;
