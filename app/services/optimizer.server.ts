@@ -9,7 +9,8 @@ type OptimizeProductArgs = {
   description: string;
   seoScoreBefore?: number | null;
   source: "manual" | "automation";
-  decisionMode?: string;
+  decisionMode?: "suggest" | "auto";
+  blockAppliedWrite?: boolean;
 };
 
 export async function optimizeProductWithAI({
@@ -21,6 +22,7 @@ export async function optimizeProductWithAI({
   seoScoreBefore,
   source,
   decisionMode = "suggest",
+  blockAppliedWrite = false,
 }: OptimizeProductArgs) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -127,12 +129,32 @@ if (seoScoreAfter <= resolvedSeoScoreBefore) {
     recorded: false,
     skipped: true,
     reason: "no_improvement",
-    status: "no_improvement",
+    status: "NO_CRITICAL_ISSUE_WITH_REPORT",
+    usageConsumed: false,
     productId,
     seoScoreBefore: resolvedSeoScoreBefore,
     seoScoreAfter,
   };
 }
+  if (blockAppliedWrite) {
+    return {
+      ok: true,
+      applied: false,
+      recorded: false,
+      skipped: true,
+      reason: "free_limit_reached",
+      status: "SUGGESTION_ONLY",
+      usageConsumed: false,
+      productId,
+      originalTitle: title,
+      suggestedTitle: titleAfter,
+      suggestedDescription: descriptionAfter,
+      seoScoreBefore: resolvedSeoScoreBefore,
+      seoScoreAfter,
+      upgradeUrl: "/app/upgrade?reason=free_limit",
+    };
+  }
+
   const appliedResult = await applyOptimizedTitleAndRecord({
     admin,
     shopDomain,
@@ -161,6 +183,8 @@ if (seoScoreAfter <= resolvedSeoScoreBefore) {
     recorded: Boolean(appliedResult?.history?.id),
     history: appliedResult?.history ?? null,
     product: appliedResult?.product ?? null,
+    status: "APPLIED",
+    usageConsumed: true,
     productId,
     originalTitle: title,
     appliedTitle: titleAfter,

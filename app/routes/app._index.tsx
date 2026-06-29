@@ -267,6 +267,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
+
+async function hasReachedFreeManualOptimizationLimit(shopDomain: string) {
+  const freeWindowStart = new Date();
+  freeWindowStart.setDate(
+    freeWindowStart.getDate() - FREE_OPTIMIZATION_WINDOW_DAYS,
+  );
+
+  const manualOptimizationCount = await prisma.optimizationHistory.count({
+    where: {
+      shopDomain,
+      source: "manual",
+      status: "applied",
+      createdAt: {
+        gte: freeWindowStart,
+      },
+    },
+  });
+
+  return manualOptimizationCount >= FREE_OPTIMIZATION_LIMIT;
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, billing, session } = await authenticate.admin(request);
 
@@ -278,34 +299,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const plan = await getPlan(billing);
 
-  if (plan === "free") {
-    const freeWindowStart = new Date();
-    freeWindowStart.setDate(
-      freeWindowStart.getDate() - FREE_OPTIMIZATION_WINDOW_DAYS,
-    );
-
-    const manualOptimizationCount = await prisma.optimizationHistory.count({
-      where: {
-        shopDomain: session.shop,
-        source: "manual",
-        status: "applied",
-        createdAt: {
-          gte: freeWindowStart,
-        },
-      },
-    });
-
-    if (manualOptimizationCount >= FREE_OPTIMIZATION_LIMIT) {
-      return Response.json(
-        {
-          error: "Free limit reached. Upgrade to Starter.",
-          code: "FREE_LIMIT_REACHED",
-          upgradeUrl: "/app/upgrade?reason=free_limit",
-        },
-        { status: 403 },
-      );
-    }
-  }
+  const freeManualLimitReached =
+    plan === "free"
+      ? await hasReachedFreeManualOptimizationLimit(session.shop)
+      : false;
 
   if (!apiKey) {
     console.error("Manual optimization failed: missing OPENAI_API_KEY", {
@@ -334,6 +331,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       description,
       source: "manual",
       decisionMode: "suggest",
+      blockAppliedWrite: freeManualLimitReached,
     });
 
     return Response.json(result);
