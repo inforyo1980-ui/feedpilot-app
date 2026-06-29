@@ -1,10 +1,10 @@
-export type GrowthIssueSeverity = "critical" | "warning" | "info";
+export type GrowthIssueSeverity = "critical" | "warning" | "opportunity";
 
 export type GrowthIssueCategory =
   | "seo"
   | "content"
   | "image"
-  | "catalog_completeness"
+  | "catalog_data"
   | "feed_readiness"
   | "pricing"
   | "inventory";
@@ -15,13 +15,23 @@ export interface GrowthIssue {
   code: string;
   severity: GrowthIssueSeverity;
   category: GrowthIssueCategory;
+  title: string;
+  explanation: string;
+  recommendedAction: string;
   message: string;
   field?: string;
   safeAutoFix?: boolean;
 }
 
 export interface ProductGrowthScanResult {
+  productId?: string;
+  productTitle?: string;
+  checkedAreas: GrowthIssueCategory[];
   issues: GrowthIssue[];
+  issueCount: number;
+  criticalCount: number;
+  warningCount: number;
+  opportunityCount: number;
   seoHealthScore: number;
   completenessScore: number;
   feedReadinessScore: number;
@@ -44,6 +54,8 @@ export interface ProductGrowthVariantInput {
 }
 
 export interface ProductGrowthProductInput {
+  id?: unknown;
+  productId?: unknown;
   title?: unknown;
   description?: unknown;
   body_html?: unknown;
@@ -189,7 +201,14 @@ export function classifyProductGrowthIssues(
 ): ProductGrowthScanResult {
   const currentProduct = product ?? {};
   const issues: GrowthIssue[] = [];
+  const addIssue = (issue: GrowthIssue) => {
+    issues.push({
+      ...issue,
+      message: issue.message || issue.explanation,
+    });
+  };
 
+  const productId = readFirstText(currentProduct.productId, currentProduct.id);
   const title = readFirstText(currentProduct.title);
   const rawDescription = readFirstText(
     currentProduct.description,
@@ -209,8 +228,13 @@ export function classifyProductGrowthIssues(
   const images = readImages(currentProduct);
 
   if (!title) {
-    issues.push({
+    addIssue({
       code: "TITLE_MISSING",
+      title: "Missing product title",
+      explanation:
+        "The product title is empty, which limits SEO context and catalog discovery readiness.",
+      recommendedAction:
+        "Add a clear, product-specific title before publishing or promoting this item.",
       severity: "critical",
       category: "seo",
       field: "title",
@@ -219,8 +243,13 @@ export function classifyProductGrowthIssues(
       safeAutoFix: false,
     });
   } else if (title.length < 20) {
-    issues.push({
+    addIssue({
       code: "TITLE_TOO_SHORT",
+      title: "Short product title",
+      explanation:
+        "The product title may be too brief to describe the item clearly in search, storefront, or feed contexts.",
+      recommendedAction:
+        "Review the title and include the product type, key attribute, or differentiator where appropriate.",
       severity: "warning",
       category: "seo",
       field: "title",
@@ -229,8 +258,13 @@ export function classifyProductGrowthIssues(
       safeAutoFix: true,
     });
   } else if (title.length > 80) {
-    issues.push({
+    addIssue({
       code: "TITLE_TOO_LONG",
+      title: "Long product title",
+      explanation:
+        "The product title may be truncated in storefront or feed contexts.",
+      recommendedAction:
+        "Review the title and keep the most useful product details near the beginning.",
       severity: "warning",
       category: "seo",
       field: "title",
@@ -241,8 +275,13 @@ export function classifyProductGrowthIssues(
   }
 
   if (title && GENERIC_TITLES.has(title.toLowerCase())) {
-    issues.push({
+    addIssue({
       code: "TITLE_GENERIC",
+      title: "Generic product title",
+      explanation:
+        "The product title appears generic and may not communicate product-specific value.",
+      recommendedAction:
+        "Replace generic wording with a specific product name and meaningful attributes.",
       severity: "warning",
       category: "seo",
       field: "title",
@@ -253,8 +292,13 @@ export function classifyProductGrowthIssues(
   }
 
   if (!description) {
-    issues.push({
+    addIssue({
       code: "DESCRIPTION_MISSING",
+      title: "Missing product description",
+      explanation:
+        "The product description is empty, reducing SEO context and catalog completeness.",
+      recommendedAction:
+        "Add useful product details such as materials, fit, use cases, benefits, or care details.",
       severity: "critical",
       category: "content",
       field: "description",
@@ -263,8 +307,13 @@ export function classifyProductGrowthIssues(
       safeAutoFix: true,
     });
   } else if (description.length < 80) {
-    issues.push({
+    addIssue({
       code: "DESCRIPTION_TOO_SHORT",
+      title: "Short product description",
+      explanation:
+        "The product description may not give shoppers or feeds enough context.",
+      recommendedAction:
+        "Expand the description with accurate product details that help customers evaluate the item.",
       severity: "warning",
       category: "content",
       field: "description",
@@ -273,9 +322,14 @@ export function classifyProductGrowthIssues(
       safeAutoFix: true,
     });
   } else if (wordCount(description) < 25) {
-    issues.push({
+    addIssue({
       code: "DESCRIPTION_THIN",
-      severity: "info",
+      title: "Thin product description",
+      explanation:
+        "The product description has limited detail and may miss useful growth signals.",
+      recommendedAction:
+        "Review the description and add helpful specifics where they are accurate.",
+      severity: "opportunity",
       category: "content",
       field: "description",
       message:
@@ -285,8 +339,13 @@ export function classifyProductGrowthIssues(
   }
 
   if (images.length === 0) {
-    issues.push({
-      code: "IMAGE_MISSING",
+    addIssue({
+      code: "PRODUCT_IMAGE_MISSING",
+      title: "Missing product image",
+      explanation:
+        "The product has no image in the provided data, creating a major catalog completeness and feed readiness gap.",
+      recommendedAction:
+        "Add at least one accurate product image before relying on this item for merchandising or feeds.",
       severity: "critical",
       category: "image",
       field: "images",
@@ -298,9 +357,14 @@ export function classifyProductGrowthIssues(
     images.some(imageHasAltField) &&
     images.some((image) => imageHasAltField(image) && !imageHasAltValue(image))
   ) {
-    issues.push({
+    addIssue({
       code: "IMAGE_ALT_MISSING",
-      severity: "info",
+      title: "Missing image alt text",
+      explanation:
+        "Image alt text is missing where alt data is available, reducing accessibility and SEO context.",
+      recommendedAction:
+        "Add concise, accurate alt text that describes the product image.",
+      severity: "opportunity",
       category: "image",
       field: "images.alt",
       message:
@@ -310,17 +374,27 @@ export function classifyProductGrowthIssues(
   }
 
   if (!productType) {
-    issues.push({
+    addIssue({
       code: "PRODUCT_TYPE_MISSING",
+      title: "Missing product type",
+      explanation:
+        "Product type is missing, making catalog grouping and growth analysis harder.",
+      recommendedAction:
+        "Review and assign the appropriate product type manually.",
       severity: "warning",
-      category: "catalog_completeness",
+      category: "catalog_data",
       field: "productType",
       message:
         "Product type is missing, making catalog grouping and feed readiness harder to assess.",
       safeAutoFix: false,
     });
-    issues.push({
+    addIssue({
       code: "FEED_PRODUCT_TYPE_GAP",
+      title: "Feed product type gap",
+      explanation:
+        "A missing product type creates a feed readiness signal to review.",
+      recommendedAction:
+        "Add the product type manually if it is known and appropriate.",
       severity: "warning",
       category: "feed_readiness",
       field: "productType",
@@ -330,17 +404,26 @@ export function classifyProductGrowthIssues(
   }
 
   if (!vendor) {
-    issues.push({
+    addIssue({
       code: "VENDOR_MISSING",
+      title: "Missing vendor",
+      explanation:
+        "Vendor is missing, reducing catalog completeness and filtering quality.",
+      recommendedAction: "Review and assign the correct vendor manually.",
       severity: "warning",
-      category: "catalog_completeness",
+      category: "catalog_data",
       field: "vendor",
       message:
         "Vendor is missing, reducing catalog completeness and filtering quality.",
       safeAutoFix: false,
     });
-    issues.push({
+    addIssue({
       code: "FEED_VENDOR_GAP",
+      title: "Feed vendor gap",
+      explanation:
+        "A missing vendor creates a feed readiness signal to review.",
+      recommendedAction:
+        "Add the vendor manually if it is known and appropriate.",
       severity: "warning",
       category: "feed_readiness",
       field: "vendor",
@@ -350,20 +433,29 @@ export function classifyProductGrowthIssues(
   }
 
   if (tags.length === 0) {
-    issues.push({
+    addIssue({
       code: "TAGS_MISSING",
+      title: "Missing product tags",
+      explanation:
+        "Product tags are missing, limiting segmentation and growth opportunity discovery.",
+      recommendedAction: "Add accurate merchandising or catalog tags manually.",
       severity: "warning",
-      category: "catalog_completeness",
+      category: "catalog_data",
       field: "tags",
       message:
         "Product tags are missing, limiting segmentation and growth opportunity discovery.",
       safeAutoFix: false,
     });
   } else if (tags.length < 3) {
-    issues.push({
+    addIssue({
       code: "TAGS_THIN",
-      severity: "info",
-      category: "catalog_completeness",
+      title: "Thin product tags",
+      explanation:
+        "The product has very few tags, which may limit merchandising and growth analysis.",
+      recommendedAction:
+        "Review whether additional accurate tags would improve catalog organization.",
+      severity: "opportunity",
+      category: "catalog_data",
       field: "tags",
       message:
         "Product tags are thin and may not fully support merchandising or growth analysis.",
@@ -372,8 +464,12 @@ export function classifyProductGrowthIssues(
   }
 
   if (images.length === 0) {
-    issues.push({
+    addIssue({
       code: "FEED_IMAGE_GAP",
+      title: "Feed image gap",
+      explanation: "A missing image creates a feed readiness signal to review.",
+      recommendedAction:
+        "Add an accurate product image before using this item in feed workflows.",
       severity: "critical",
       category: "feed_readiness",
       field: "images",
@@ -383,8 +479,13 @@ export function classifyProductGrowthIssues(
   }
 
   if (hasPriceField(currentProduct) && !hasPriceSignal(currentProduct)) {
-    issues.push({
+    addIssue({
       code: "FEED_PRICE_GAP",
+      title: "Feed price gap",
+      explanation:
+        "Price data was expected from the current product data shape but no usable price was present.",
+      recommendedAction:
+        "Review price data in Shopify; do not auto-fill price from this classifier.",
       severity: "warning",
       category: "feed_readiness",
       field: "price",
@@ -400,9 +501,14 @@ export function classifyProductGrowthIssues(
     normalizeList(currentProduct.variants).length > 0
   ) {
     if (!hasInventorySignal(currentProduct)) {
-      issues.push({
+      addIssue({
         code: "INVENTORY_SIGNAL_MISSING",
-        severity: "info",
+        title: "Inventory signal missing",
+        explanation:
+          "Inventory data was expected from the current product data shape but was not available.",
+        recommendedAction:
+          "Review inventory data in Shopify if inventory readiness is required for this workflow.",
+        severity: "opportunity",
         category: "inventory",
         field: "inventory",
         message:
@@ -437,7 +543,7 @@ export function classifyProductGrowthIssues(
       issues
         .filter(
           (issue) =>
-            issue.category === "catalog_completeness" ||
+            issue.category === "catalog_data" ||
             issue.category === "content" ||
             issue.category === "image",
         )
@@ -468,8 +574,33 @@ export function classifyProductGrowthIssues(
         ),
   );
 
+  const criticalCount = issues.filter(
+    (issue) => issue.severity === "critical",
+  ).length;
+  const warningCount = issues.filter(
+    (issue) => issue.severity === "warning",
+  ).length;
+  const opportunityCount = issues.filter(
+    (issue) => issue.severity === "opportunity",
+  ).length;
+
   return {
+    productId: productId || undefined,
+    productTitle: title || undefined,
+    checkedAreas: [
+      "seo",
+      "content",
+      "image",
+      "catalog_data",
+      "feed_readiness",
+      "pricing",
+      "inventory",
+    ],
     issues,
+    issueCount: issues.length,
+    criticalCount,
+    warningCount,
+    opportunityCount,
     seoHealthScore,
     completenessScore,
     feedReadinessScore,
