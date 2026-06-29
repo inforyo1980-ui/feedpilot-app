@@ -22,6 +22,7 @@ import {
 
 import { applyOptimizedTitleAndRecord } from "../services/optimization-apply.server";
 import { OptimizationHistoryPanel } from "../components/OptimizationHistoryPanel";
+import { ProductGrowthReport } from "../components/ProductGrowthReport";
 import { StatCard } from "../components/StatCard";
 import { optimizeProductWithAI } from "../services/optimizer.server";
 const FREE_OPTIMIZATION_LIMIT = 2;
@@ -106,6 +107,27 @@ function mapHistoryForRevenueStats(
       scoreBefore: item.seoScoreBefore as number,
       scoreAfter: item.seoScoreAfter as number,
     }));
+}
+
+async function countFreeAppliedWrites(shopDomain: string, since: Date) {
+  const appliedWrites = await prisma.optimizationHistory.findMany({
+    where: {
+      shopDomain,
+      source: "manual",
+      status: "applied",
+      createdAt: {
+        gte: since,
+      },
+    },
+    select: {
+      productTitleBefore: true,
+      productTitleAfter: true,
+    },
+  });
+
+  return appliedWrites.filter(
+    (item) => item.productTitleBefore !== item.productTitleAfter,
+  ).length;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -222,16 +244,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const manualOptimizationCount =
     plan === "free"
-      ? await prisma.optimizationHistory.count({
-          where: {
-            shopDomain: session.shop,
-            source: "manual",
-            status: "applied",
-            createdAt: {
-              gte: freeWindowStart,
-            },
-          },
-        })
+      ? await countFreeAppliedWrites(session.shop, freeWindowStart)
       : 0;
 
   const freeRemaining =
@@ -284,16 +297,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       freeWindowStart.getDate() - FREE_OPTIMIZATION_WINDOW_DAYS,
     );
 
-    const manualOptimizationCount = await prisma.optimizationHistory.count({
-      where: {
-        shopDomain: session.shop,
-        source: "manual",
-        status: "applied",
-        createdAt: {
-          gte: freeWindowStart,
-        },
-      },
-    });
+    const manualOptimizationCount = await countFreeAppliedWrites(
+      session.shop,
+      freeWindowStart,
+    );
 
     if (manualOptimizationCount >= FREE_OPTIMIZATION_LIMIT) {
       return Response.json(
@@ -1500,6 +1507,14 @@ setTimeout(() => setToast(null), 2000);
           {lastSuccessNotice}
         </div>
       )}
+
+      <ProductGrowthReport
+        productsMonitored={snapshot.productsMonitored}
+        criticalCount={criticalCount}
+        opportunityCount={opportunityCount}
+        avgSeoScore={snapshot.avgSeoScore}
+        avgOptimizationLift={snapshot.avgOptimizationLift}
+      />
 
       <div
         style={{
