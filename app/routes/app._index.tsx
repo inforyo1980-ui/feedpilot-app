@@ -315,7 +315,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         "FeedPilot could not generate a per-run growth report because AI configuration is missing.",
       impactSummary: "AI configuration is missing.",
       recommendedAction:
-        "Configure OPENAI_API_KEY, then run Optimize Now again.",
+        "Configure OPENAI_API_KEY, then run Scan Products again.",
       upgradeRequired: false,
       usageConsumed: false,
     };
@@ -344,7 +344,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         "FeedPilot could not inspect this product because the product ID was missing.",
       impactSummary: "Product ID was missing.",
       recommendedAction:
-        "Refresh the dashboard and run Optimize Now from a listed product.",
+        "Refresh the dashboard and run Scan Products from a listed product.",
       upgradeRequired: false,
       usageConsumed: false,
     };
@@ -419,12 +419,12 @@ function buildHeroStatusLabel(plan: "free" | "starter" | "growth") {
 
 function buildHeroSubtitleByPlan(plan: "free" | "starter" | "growth") {
   if (plan === "growth") {
-    return "FeedPilot is monitoring and improving your catalog every week.";
+    return "Weekly monitoring is active for SEO, visibility, and product data gaps.";
   }
   if (plan === "starter") {
-    return "Manual optimization is active. Automation is still off.";
+    return "Manual product growth fixes are active. Weekly monitoring is available on Growth.";
   }
-  return "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility.";
+  return "FeedPilot scans your Shopify catalog for SEO, visibility, and product data issues, then helps you safely fix the highest-impact opportunities with AI.";
 }
 
 function getImpactLevelTone(label: string) {
@@ -509,22 +509,22 @@ function buildGrowthAutoRunMessage(status: GrowthAutoRunStatus) {
   }
 
   if (status.status === "no_products") {
-    return "No eligible products were found for priority optimization.";
+    return "No eligible products were found for the weekly monitoring check.";
   }
 
   if (status.status === "no_opportunities") {
-    return "No priority optimization opportunities were found right now.";
+    return "No priority growth opportunities were found right now; the catalog health report is available below.";
   }
 
   if (status.status === "no_changes") {
-    return "Priority optimization ran, but no product changes were needed.";
+    return "Weekly monitoring ran and produced a healthy report with no safe automatic fixes needed.";
   }
 
   if (status.status === "disabled") {
     return status.message || "Auto optimization is disabled in settings.";
   }
 
-  return status.message || "Priority optimization failed. Please try again.";
+  return status.message || "Weekly monitoring failed. Please try again.";
 }
 
 function getGrowthAutoRunTone(status: GrowthAutoRunStatus["status"]) {
@@ -672,8 +672,8 @@ export default function Index() {
       status: "checking",
       message:
         source === "manual"
-          ? "Running priority optimization..."
-          : "Checking priority optimization status...",
+          ? "Running weekly monitoring check..."
+          : "Checking weekly monitoring status...",
     });
 
     try {
@@ -891,12 +891,11 @@ export default function Index() {
             </div>
 
             <div style={{ marginTop: 6, color: "#a00", marginBottom: 8 }}>
-              <b>Impact:</b> Low visibility risk
+              <b>Issue signal:</b> Visibility or catalog completeness gap
             </div>
 
             <div style={{ marginTop: 8, color: "#0a7" }}>
-              <b>Recommended action:</b> Improve title, keywords, and
-              description quality.
+              <b>Recommended action:</b> Review SEO health, missing data, and safe AI suggestions.
             </div>
           </div>
 
@@ -922,8 +921,8 @@ export default function Index() {
             onClick={() => onOptimize(product)}
           >
             {optimizingId === product.id
-              ? "Improving..."
-              : "Improve Visibility"}
+              ? "Reviewing..."
+              : "Review Opportunity"}
           </button>
         </div>
       </div>
@@ -982,7 +981,7 @@ export default function Index() {
             marginBottom: 8,
           }}
         >
-          FeedPilot Visibility Engine
+          FeedPilot SEO & Product Growth Control Center
         </div>
 
         <h1
@@ -994,11 +993,7 @@ export default function Index() {
             fontWeight: 800,
           }}
         >
-          {criticalCount > 0
-            ? criticalCount === 1
-              ? "You're losing visibility on 1 product"
-              : `You're losing visibility on ${criticalCount} products`
-            : "Your catalog still has opportunities to improve"}
+          Find product growth gaps before they cost you traffic.
         </h1>
 
         <p
@@ -1056,16 +1051,16 @@ export default function Index() {
               {plan === "growth"
                 ? "Automation is active"
                 : plan === "starter"
-                  ? "Manual optimization is active"
-                  : "Start improving product visibility"}
+                  ? "Manual growth fixes are active"
+                  : "Scan product growth gaps"}
             </div>
 
             <div style={{ fontSize: 14, color: "#666", marginBottom: 14 }}>
               {plan === "growth"
-                ? "FeedPilot is monitoring and improving your catalog every week."
+                ? "Weekly monitoring is active for SEO, visibility, and product data gaps."
                 : plan === "starter"
-                  ? "Optimize weak listings manually now, then move to Growth when you want the work automated."
-                  : "Scan your catalog, fix weak listings, and see how FeedPilot improves product visibility."}
+                  ? "Review product growth opportunities and safely apply supported fixes manually."
+                  : "FeedPilot scans your Shopify catalog for SEO, visibility, and product data issues, then helps you safely fix the highest-impact opportunities with AI."}
             </div>
             {plan !== "growth" && (
               <div
@@ -1077,7 +1072,7 @@ export default function Index() {
               >
                 {plan === "starter"
                   ? "Automation is still off."
-                  : "Free helps you prove the value before upgrading."}
+                  : "Free helps you discover hidden product growth gaps before upgrading."}
               </div>
             )}
             <div
@@ -1206,10 +1201,10 @@ No immediate manual action needed right now.`);
                     }}
                   >
                     {starterOptimizing
-                      ? "Optimizing..."
+                      ? "Scanning..."
                       : freeLimitReached
-                        ? "Unlock Unlimited Optimization"
-                        : "Optimize Now"}
+                        ? "Unlock Full Issue Visibility"
+                        : "Scan Products"}
                   </button>
 
                   <button
@@ -1357,7 +1352,7 @@ No immediate manual action needed right now.`);
                       opacity: starterOptimizing ? 0.7 : 1,
                     }}
                   >
-                    {starterOptimizing ? "Optimizing..." : "Optimize Now"}
+                    {starterOptimizing ? "Scanning..." : "Scan Products"}
                   </button>
 
                   <button
@@ -1374,7 +1369,7 @@ No immediate manual action needed right now.`);
                       fontSize: 15,
                     }}
                   >
-                    Enable Auto Optimization ($19/mo)
+                    Enable Weekly Monitoring ($19/mo)
                   </button>
                 </>
               )}
@@ -1411,7 +1406,7 @@ No immediate manual action needed right now.`);
                       fontSize: 15,
                     }}
                   >
-                    View Optimization Activity
+                    View Growth Fix History
                   </button>
 
                   <button
@@ -1437,10 +1432,10 @@ No immediate manual action needed right now.`);
             {plan !== "growth" && (
               <div style={{ fontSize: 13, color: "#6b7280" }}>
                 {plan === "starter"
-                  ? "Manual optimization is active. Automation is still off."
+                  ? "Manual product growth fixes are active. Weekly monitoring is available on Growth."
                   : freeLimitReached
-                    ? `You have used your free optimization allowance. Upgrade to keep improving your catalog.`
-                    : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade to optimize your full catalog and turn this into an ongoing system.`}
+                    ? `You have used your free optimization allowance. Upgrade for full issue visibility and manual safe fixes.`
+                    : `You can test ${FREE_OPTIMIZATION_LIMIT} products every ${FREE_OPTIMIZATION_WINDOW_DAYS} days. Upgrade for full issue visibility, manual fixes, and weekly monitoring.`}
               </div>
             )}
           </div>
@@ -1465,7 +1460,7 @@ No immediate manual action needed right now.`);
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
-              Automation Status
+              Weekly Monitoring
             </div>
 
             <div
@@ -1509,11 +1504,10 @@ No immediate manual action needed right now.`);
             lineHeight: 1.7,
           }}
         >
-          <b>{opportunityCount} optimization opportunities detected.</b> Free
-          plan lets you test {FREE_OPTIMIZATION_LIMIT} products every{" "}
+          <b>{opportunityCount} growth opportunities detected.</b> Free
+          plan lets you discover gaps and test {FREE_OPTIMIZATION_LIMIT} products every{" "}
           {FREE_OPTIMIZATION_WINDOW_DAYS} days. The remaining opportunities will
-          stay unresolved unless you upgrade to unlock unlimited optimization
-          and weekly automation.
+          stay unresolved unless you upgrade to unlock full issue visibility, manual fixes, and weekly monitoring.
         </div>
       )}
 
@@ -1530,7 +1524,7 @@ No immediate manual action needed right now.`);
             lineHeight: 1.7,
           }}
         >
-          <b>Starter is active.</b> Manual optimization is unlocked. Upgrade to
+          <b>Starter is active.</b> Manual product growth fixes are unlocked. Upgrade to
           Growth when you want FeedPilot to continue improving your catalog in
           the background every week.
         </div>
@@ -1546,7 +1540,7 @@ No immediate manual action needed right now.`);
             background: "#fff",
           }}
         >
-          Optimizing {progress} products...
+          Scanning {progress} products...
         </div>
       )}
 
@@ -1563,8 +1557,8 @@ No immediate manual action needed right now.`);
           }}
         >
           {successCount > 0
-            ? `Batch optimization completed. Optimized ${successCount} products.`
-            : "Batch run finished, but no products were optimized."}
+            ? `Batch growth fix completed. Applied safe fixes to ${successCount} products.`
+            : "Batch scan finished with a report and no safe automatic fixes needed."}
         </div>
       )}
 
@@ -1661,25 +1655,25 @@ No immediate manual action needed right now.`);
         }}
       >
         <StatCard
-          label="Products Monitored"
+          label="Products Checked"
           value={products.length}
-          hint="Products currently tracked by FeedPilot"
+          hint="Products included in the current catalog scan"
         />
 
         <StatCard
-          label="Critical Issues"
+          label="Visibility Issues"
           value={criticalCount}
-          hint="Products that need immediate attention"
+          hint="SEO, data, or visibility gaps needing review"
         />
 
         <StatCard
-          label="Optimization Opportunities"
+          label="Growth Opportunities"
           value={opportunityCount}
-          hint="Products with potential to improve visibility and performance"
+          hint="Safe product growth opportunities found in the catalog"
         />
 
         <StatCard
-          label="Visibility Lift"
+          label="Product SEO & Catalog Health"
           value={
             allTimeRevenueStats.avgImprovement > 40
               ? "+40+"
@@ -1687,7 +1681,7 @@ No immediate manual action needed right now.`);
                   allTimeRevenueStats.avgImprovement
                 }`
           }
-          hint="Based on FeedPilot Visibility Score"
+          hint="Internal visibility score trend from applied fixes"
         />
       </div>
       <div
@@ -1710,15 +1704,15 @@ No immediate manual action needed right now.`);
         }}
       >
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
-          Impact
+          Safe AI Fixes
         </div>
 
         <div style={{ fontSize: 14, color: "#444", lineHeight: 1.7 }}>
           {plan === "growth"
-            ? `FeedPilot applied ${appliedThisWeek} optimizations this week and continues monitoring your catalog.`
+            ? `FeedPilot applied ${appliedThisWeek} safe fixes this week and continues weekly monitoring.`
             : plan === "starter"
-              ? "Starter keeps manual optimization available. Growth turns the same workflow into a weekly automated system."
-              : "FeedPilot shows which listings are weak and what can be improved next."}
+              ? "Starter keeps manual safe fixes available. Growth adds weekly monitoring and safe auto-fix history."
+              : "FeedPilot applies safe fixes when confidence is high. When a change needs merchant review, it creates a suggestion instead of publishing automatically."}
         </div>
       </div>
 
@@ -1743,19 +1737,19 @@ No immediate manual action needed right now.`);
         >
           <div>
             <h2 style={{ marginTop: 0, marginBottom: 8 }}>
-              Top Priority Opportunities
+              Top Growth Opportunities
             </h2>
             <p style={{ color: "#666", marginTop: 0, marginBottom: 0 }}>
               {plan === "growth"
-                ? "FeedPilot is monitoring these high-impact products."
+                ? "FeedPilot is monitoring these high-impact SEO and product growth signals."
                 : plan === "starter"
-                  ? "These products need your manual attention first."
-                  : "These products are losing visibility and need improvement."}
+                  ? "These products have the highest-priority safe suggestions waiting for review."
+                  : "These products show visibility, SEO, or catalog completeness gaps."}
             </p>
           </div>
 
           <div style={{ fontSize: 13, color: "#666" }}>
-            Highest-impact actions for this catalog
+            Highest-priority growth opportunity queue
           </div>
         </div>
 
@@ -1769,7 +1763,7 @@ No immediate manual action needed right now.`);
               color: "#666",
             }}
           >
-            No urgent opportunities found.
+            No urgent growth opportunities found. Your report is still available through catalog health and history.
           </div>
         ) : (
           topOpportunities.map((product, index) =>
@@ -1870,14 +1864,14 @@ No immediate manual action needed right now.`);
         >
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             {plan === "starter"
-              ? "Manual optimization stops when you stop."
-              : "You can see the problem, but not fully fix it."}
+              ? "Manual fixes stop when you stop."
+              : "You can discover gaps before deciding what to fix."}
           </div>
 
           <div style={{ fontSize: 13, color: "#666", marginBottom: 10 }}>
             {plan === "starter"
-              ? "Upgrade to Growth to let FeedPilot keep optimizing automatically every week."
-              : "Start with Starter, then upgrade to Growth to turn this into continuous optimization."}
+              ? "Upgrade to Growth for weekly monitoring, safe auto-fix, reports, and automation history."
+              : "Start with Starter for manual product growth fixes, then use Growth for weekly monitoring."}
           </div>
 
           <button
@@ -1924,8 +1918,8 @@ No immediate manual action needed right now.`);
             renderCompactOpportunityCard(product, index, async (product) => {
               if (plan === "free") {
                 openUpgradeModal(
-                  "Upgrade required to optimize this product",
-                  "Free helps you find weak listings, but product optimization is a paid action. Upgrade to Starter for manual optimization or Growth for automatic ongoing optimization.",
+                  "Upgrade required to apply this product growth fix",
+                  "Free helps you find product growth gaps. Upgrade to Starter for manual safe fixes or Growth for weekly monitoring and safe auto-fix.",
                   "Upgrade now",
                   "single_optimize_free",
                 );
@@ -2010,9 +2004,9 @@ No immediate manual action needed right now.`);
           background: "#fff",
         }}
       >
-        <h2 style={{ marginTop: 0, marginBottom: 8 }}>Catalog Health</h2>
+        <h2 style={{ marginTop: 0, marginBottom: 8 }}>Product SEO & Catalog Health</h2>
         <p style={{ color: "#666", marginTop: 0, marginBottom: 14 }}>
-          Products are grouped by current optimization quality and urgency.
+          Products are grouped by SEO health, visibility signals, and catalog completeness readiness.
         </p>
 
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
@@ -2064,10 +2058,10 @@ No immediate manual action needed right now.`);
           }}
         >
           {plan === "free"
-            ? "Upgrade to optimize all priority products"
+            ? "Upgrade to apply priority fixes"
             : plan === "starter"
-              ? "Optimize Priority Products"
-              : "Run Priority Optimization"}
+              ? "Apply Priority Fixes"
+              : "Run Weekly Monitoring Check"}
         </button>
 
         {plan === "growth" && growthAutoRunStatus && growthAutoRunTone && (
@@ -2085,14 +2079,14 @@ No immediate manual action needed right now.`);
           >
             <div style={{ fontWeight: 800, marginBottom: 4 }}>
               {growthAutoRunStatus.status === "checking"
-                ? "Checking priority optimization"
+                ? "Checking weekly monitoring"
                 : growthAutoRunStatus.status === "optimized"
-                  ? "Priority optimization complete"
+                  ? "Weekly monitoring complete"
                   : growthAutoRunStatus.status === "cooldown"
-                    ? "Priority optimization on cooldown"
+                    ? "Weekly monitoring on cooldown"
                     : growthAutoRunStatus.status === "server_error"
-                      ? "Priority optimization error"
-                      : "Priority optimization status"}
+                      ? "Weekly monitoring error"
+                      : "Weekly monitoring status"}
             </div>
             <div>{buildGrowthAutoRunMessage(growthAutoRunStatus)}</div>
             {growthAutoRunStatus.status === "optimized" && (
@@ -2166,9 +2160,7 @@ No immediate manual action needed right now.`);
               maxWidth: 720,
             }}
           >
-            Starter gives you manual optimization without the free trial limit.
-            Upgrade to Growth when you want weekly automation and ongoing
-            improvements.
+            Starter gives you manual product growth fixes with full issue visibility. Upgrade to Growth when you want weekly monitoring, safe auto-fix, and reports.
           </div>
 
           <div
@@ -2209,7 +2201,7 @@ No immediate manual action needed right now.`);
                 cursor: "pointer",
               }}
             >
-              Enable Auto Optimization ($19/mo)
+              Enable Weekly Monitoring ($19/mo)
             </button>
           </div>
         </div>
@@ -2237,8 +2229,7 @@ No immediate manual action needed right now.`);
               maxWidth: 760,
             }}
           >
-            Manual optimization is working. Growth keeps FeedPilot improving
-            your catalog automatically every week.
+            Manual product growth fixes are working. Growth adds weekly monitoring, safe auto-fix, and an automation history.
           </div>
           <button
             onClick={() => goToUpgrade("post_insight_cta")}
@@ -2253,7 +2244,7 @@ No immediate manual action needed right now.`);
               cursor: "pointer",
             }}
           >
-            Start Weekly Auto Optimization ($19/mo)
+            Start Weekly Monitoring ($19/mo)
           </button>
         </div>
       )}
@@ -2523,7 +2514,7 @@ No immediate manual action needed right now.`);
                   border: "none",
                 }}
               >
-                Unlock Unlimited Optimization
+                Unlock Full Issue Visibility
               </button>
 
               <button

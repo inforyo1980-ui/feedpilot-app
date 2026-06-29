@@ -162,15 +162,15 @@ export function OptimizationHistoryPanel(props: {
           }}
         >
           <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-            Optimization History
+            Growth Fix History
           </div>
           <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
-            FeedPilot Visibility Score is based on title quality, description completeness, and content signals.
+            FeedPilot keeps evidence of applied safe fixes, suggestions, and visibility score movement over time.
           </div>
 
           {optimizationHistory.length === 0 ? (
             <div style={{ color: "#6b7280", fontSize: 14 }}>
-              No history yet. The next applied optimization will start building your value record.
+              No history yet. The next applied fix or reviewed suggestion will start building your growth evidence record.
             </div>
           ) : (
             optimizationHistory.map((item) => (
