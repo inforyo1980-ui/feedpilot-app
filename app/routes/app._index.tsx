@@ -278,6 +278,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const plan = await getPlan(billing);
 
+  let freeAppliedWriteAvailable = true;
+
   if (plan === "free") {
     const freeWindowStart = new Date();
     freeWindowStart.setDate(
@@ -295,16 +297,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    if (manualOptimizationCount >= FREE_OPTIMIZATION_LIMIT) {
-      return Response.json(
-        {
-          error: "Free limit reached. Upgrade to Starter.",
-          code: "FREE_LIMIT_REACHED",
-          upgradeUrl: "/app/upgrade?reason=free_limit",
-        },
-        { status: 403 },
-      );
-    }
+    freeAppliedWriteAvailable = manualOptimizationCount < FREE_OPTIMIZATION_LIMIT;
   }
 
   if (!apiKey) {
@@ -334,7 +327,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       description,
       source: "manual",
       decisionMode: "suggest",
+      allowAppliedWrite: plan !== "free" || freeAppliedWriteAvailable,
     });
+
+    if (result?.code === "FREE_LIMIT_REACHED") {
+      return Response.json(result, { status: 403 });
+    }
 
     return Response.json(result);
   } catch (error: any) {
