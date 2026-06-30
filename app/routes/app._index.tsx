@@ -803,20 +803,47 @@ export default function Index() {
     data: any,
     product: ProductScanResult | null = null,
   ) => {
-    const growthReport = getGrowthReport(data);
-    if (growthReport) {
-      setManualScanResult({
-        resultType: (data?.resultType ||
-          growthReport.resultType) as ScanResultType,
-        usageConsumed: Boolean(
-          data?.usageConsumed || growthReport.usageConsumed,
-        ),
-        safeFixApplied: isAppliedAndRecordedResponse(data),
-        growthReport,
-        product,
-      });
-      setEmptyRunMessage("");
-    }
+    const existingGrowthReport = getGrowthReport(data);
+    const isAppliedAndRecorded = isAppliedAndRecordedResponse(data);
+    const resultType: ScanResultType =
+      data?.resultType === "APPLIED" ||
+      data?.resultType === "SUGGESTION_ONLY" ||
+      data?.resultType === "NO_CRITICAL_ISSUE_WITH_REPORT"
+        ? data.resultType
+        : isAppliedAndRecorded
+          ? "APPLIED"
+          : "SUGGESTION_ONLY";
+    const fallbackGrowthReport: ManualGrowthReport = {
+      resultType,
+      usageConsumed: resultType === "APPLIED" && isAppliedAndRecorded,
+      summary:
+        resultType === "NO_CRITICAL_ISSUE_WITH_REPORT"
+          ? "No critical safe-fix issue found in this scan."
+          : resultType === "APPLIED"
+            ? "FeedPilot applied a supported safe fix for the selected product."
+            : "FeedPilot found a product growth gap for the selected product.",
+      recommendedAction:
+        resultType === "NO_CRITICAL_ISSUE_WITH_REPORT"
+          ? "FeedPilot can continue monitoring for product data, SEO, and visibility readiness gaps."
+          : resultType === "APPLIED"
+            ? "Review the refreshed product history and quota details after this safe fix."
+            : "Review the issue signal and upgrade when ready to apply supported safe fixes.",
+    };
+    const growthReport = existingGrowthReport ?? fallbackGrowthReport;
+
+    setManualScanResult({
+      resultType: (data?.resultType ||
+        growthReport.resultType) as ScanResultType,
+      usageConsumed:
+        resultType === "APPLIED" &&
+        isAppliedAndRecorded &&
+        Boolean(data?.usageConsumed || growthReport.usageConsumed),
+      safeFixApplied: resultType === "APPLIED" && isAppliedAndRecorded,
+      growthReport,
+      product,
+    });
+    setEmptyRunMessage("");
+
     return growthReport;
   };
 
