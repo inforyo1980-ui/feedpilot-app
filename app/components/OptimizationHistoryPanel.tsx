@@ -49,10 +49,11 @@ type ScoreLiftItem = {
 };
 
 export function OptimizationHistoryPanel(props: {
+  plan: "free" | "starter" | "growth";
   weeklyInsight: WeeklyInsight;
   optimizationHistory: HistoryItem[];
 }) {
-  const { weeklyInsight, optimizationHistory } = props;
+  const { plan, weeklyInsight, optimizationHistory } = props;
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -72,116 +73,155 @@ export function OptimizationHistoryPanel(props: {
             padding: 20,
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-            Growth weekly monitoring report
-          </div>
-          <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
-            Weekly monitoring checks the Shopify catalog for SEO, visibility,
-            and product data issues. Safe fixes are applied only when confidence
-            is high; riskier changes stay as suggestions waiting for review.
-          </div>
-
-          <div
-            style={{
-              background: "#f9fafb",
-              borderRadius: 12,
-              padding: 14,
-              fontSize: 14,
-              lineHeight: 1.7,
-              marginBottom: 16,
-            }}
-          >
-            Last weekly scan: {formatDate(weeklyInsight.lastWeeklyScanAt)}.
-            FeedPilot monitored {weeklyInsight.productsChecked ?? 0} products
-            and found {weeklyInsight.issuesFound ?? 0} issue signals in the last
-            7 days.
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: 12,
-            }}
-          >
-            <MetricCard
-              label="Products checked"
-              value={weeklyInsight.productsChecked ?? 0}
-            />
-            <MetricCard
-              label="Issues found"
-              value={weeklyInsight.issuesFound ?? 0}
-            />
-            <MetricCard
-              label="Safe fixes applied"
-              value={weeklyInsight.fixesApplied ?? weeklyInsight.appliedCount}
-            />
-            <MetricCard
-              label="Suggestions waiting"
-              value={weeklyInsight.suggestionsWaiting ?? 0}
-            />
-            <MetricCard
-              label="Skipped for safety"
-              value={weeklyInsight.skippedForSafety ?? 0}
-            />
-            <MetricCard
-              label="No critical issues"
-              value={weeklyInsight.noCriticalIssuesFound ? "Yes" : "No"}
-            />
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-              Top improved products
-            </div>
-
-            {weeklyInsight.topProducts.length === 0 ? (
-              <div style={{ color: "#6b7280", fontSize: 14 }}>
-                No applied optimizations in the last 7 days.
+          {plan === "growth" ? (
+            <>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+                Growth weekly monitoring report
               </div>
-            ) : (
-              weeklyInsight.topProducts.map((item) => (
+              <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
+                Weekly monitoring checks the Shopify catalog for SEO,
+                visibility, and product data issues. Safe fixes are applied
+                only when confidence is high; riskier changes stay as
+                suggestions waiting for review.
+              </div>
+
+              <div
+                style={{
+                  background: "#f9fafb",
+                  borderRadius: 12,
+                  padding: 14,
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  marginBottom: 16,
+                }}
+              >
+                Last weekly scan: {formatDate(weeklyInsight.lastWeeklyScanAt)}.
+                FeedPilot monitored {weeklyInsight.productsChecked ?? 0}{" "}
+                products and found {weeklyInsight.issuesFound ?? 0} issue
+                signals in the last 7 days.
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 12,
+                }}
+              >
+                <MetricCard
+                  label="Products checked"
+                  value={weeklyInsight.productsChecked ?? 0}
+                />
+                <MetricCard
+                  label="Issues found"
+                  value={weeklyInsight.issuesFound ?? 0}
+                />
+                <MetricCard
+                  label="Safe fixes applied"
+                  value={
+                    weeklyInsight.fixesApplied ?? weeklyInsight.appliedCount
+                  }
+                />
+                <MetricCard
+                  label="Suggestions waiting"
+                  value={weeklyInsight.suggestionsWaiting ?? 0}
+                />
+                <MetricCard
+                  label="Skipped for safety"
+                  value={weeklyInsight.skippedForSafety ?? 0}
+                />
+                <MetricCard
+                  label="No critical issues"
+                  value={weeklyInsight.noCriticalIssuesFound ? "Yes" : "No"}
+                />
+              </div>
+
+              <div style={{ marginTop: 18 }}>
                 <div
-                  key={item.id}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 10,
-                  }}
+                  style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 700 }}>{item.titleAfter}</div>
+                  Top improved products
+                </div>
+
+                {weeklyInsight.topProducts.length === 0 ? (
+                  <div style={{ color: "#6b7280", fontSize: 14 }}>
+                    No applied optimizations in the last 7 days.
+                  </div>
+                ) : (
+                  weeklyInsight.topProducts.map((item) => (
                     <div
+                      key={item.id}
                       style={{
-                        background: "#ecfdf3",
-                        color: "#027a48",
-                        border: "1px solid #abefc6",
-                        borderRadius: 999,
-                        padding: "4px 10px",
-                        fontSize: 12,
-                        fontWeight: 700,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 10,
                       }}
                     >
-                      {formatExactLift(item)}
-                    </div>
-                  </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700 }}>
+                          {item.titleAfter}
+                        </div>
+                        <div
+                          style={{
+                            background: "#ecfdf3",
+                            color: "#027a48",
+                            border: "1px solid #abefc6",
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {formatExactLift(item)}
+                        </div>
+                      </div>
 
-                  <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                    FeedPilot Visibility Score: {display(item.seoScoreBefore)}{" "}
-                    to {display(item.seoScoreAfter)}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          color: "#6b7280",
+                          fontSize: 13,
+                        }}
+                      >
+                        FeedPilot Visibility Score:{" "}
+                        {display(item.seoScoreBefore)} to{" "}
+                        {display(item.seoScoreAfter)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+                Weekly Monitoring
+              </div>
+              <div
+                style={{
+                  color: "#6b7280",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 10,
+                }}
+              >
+                Locked on {plan === "starter" ? "Starter" : "Free"}
+              </div>
+              <div style={{ color: "#4b5563", fontSize: 14, lineHeight: 1.6 }}>
+                Growth monitors your catalog every week, applies supported safe
+                fixes when confidence is high, and records review-only
+                suggestions when automation is risky.
+              </div>
+            </>
+          )}
         </div>
 
         <div

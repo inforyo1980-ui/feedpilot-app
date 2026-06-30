@@ -1374,8 +1374,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                             );
                             setToast({
                               message: growthReport?.upgradeRequired
-                                ? "Upgrade required to apply this recommendation. Free applied safe fix quota consumed: No."
-                                : "FeedPilot prepared a growth report. Free applied safe fix quota consumed: No.",
+                                ? "Upgrade required to apply this recommendation. Scans and suggestions do not consume applied-fix quota."
+                                : "FeedPilot returned a report. Scans and suggestions do not consume applied-fix quota.",
                               type: "info",
                             });
                             setTimeout(
@@ -1389,7 +1389,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                             showManualGrowthReport(data, product);
                             setToast({
                               message:
-                                "FeedPilot returned a report. Free applied safe fix quota consumed: No.",
+                                "FeedPilot returned a report. Scans and suggestions do not consume applied-fix quota.",
                               type: "info",
                             });
                             setTimeout(
@@ -1567,8 +1567,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                             );
                             setToast({
                               message: growthReport?.upgradeRequired
-                                ? "Upgrade required to apply this recommendation. Applied safe fix quota consumed: No."
-                                : "FeedPilot prepared a growth report. Applied safe fix quota consumed: No.",
+                                ? "Upgrade required to apply this recommendation. No safe fix was applied."
+                                : "FeedPilot returned a report. No safe fix was applied.",
                               type: "info",
                             });
                             setTimeout(
@@ -1582,7 +1582,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                             showManualGrowthReport(data, product);
                             setToast({
                               message:
-                                "FeedPilot returned a report. Applied safe fix quota consumed: No.",
+                                "FeedPilot returned a report. No safe fix was applied.",
                               type: "info",
                             });
                             setTimeout(
@@ -2100,8 +2100,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                   const growthReport = showManualGrowthReport(data, product);
                   setToast({
                     message: growthReport?.upgradeRequired
-                      ? "Upgrade required to apply this recommendation. Applied safe fix quota consumed: No."
-                      : "FeedPilot prepared a growth report. Applied safe fix quota consumed: No.",
+                      ? "Upgrade required to apply this recommendation. No safe fix was applied."
+                      : "FeedPilot returned a report. No safe fix was applied.",
                     type: "info",
                   });
                   setTimeout(() => setToast(null), SCAN_TOAST_DURATION_MS);
@@ -2442,6 +2442,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
 
       <div id="optimization-history">
         <OptimizationHistoryPanel
+          plan={plan}
           weeklyInsight={weeklyInsight}
           optimizationHistory={optimizationHistory}
         />
