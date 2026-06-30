@@ -1143,8 +1143,14 @@ export default function Index() {
             onClick={() => onOptimize(product)}
           >
             {optimizingId === product.id
-              ? "Reviewing..."
-              : "Review Opportunity"}
+              ? plan === "free"
+                ? "Checking..."
+                : "Reviewing..."
+              : plan === "free"
+                ? "Try safe fix"
+                : plan === "starter"
+                  ? "Apply manual fix"
+                  : "Review Opportunity"}
           </button>
         </div>
       </div>
@@ -2061,12 +2067,12 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         ) : (
           topOpportunities.map((product, index) =>
             renderCompactOpportunityCard(product, index, async (product) => {
-              if (plan === "free") {
+              if (plan === "free" && freeLimitReached) {
                 openUpgradeModal(
-                  "This product has a visibility readiness gap",
-                  "FeedPilot found a weak listing that can be improved now. Free lets you discover the issue, but optimization requires a paid plan. Upgrade to Starter to fix it manually, or Growth to let FeedPilot keep improving products automatically.",
-                  "Unlock optimization",
-                  "single_optimize_free",
+                  "Free safe fixes used",
+                  "You have used your 2 free safe fixes for this 7-day period. Upgrade to Starter to apply more manual fixes, or Growth for weekly monitoring.",
+                  "Upgrade to Starter",
+                  "free_safe_fixes_used",
                 );
                 return;
               }
@@ -2110,7 +2116,9 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                   const message =
                     plan === "growth"
                       ? "Priority product optimized successfully"
-                      : "Starter optimization completed successfully";
+                      : plan === "starter"
+                        ? "Starter optimization completed successfully"
+                        : "Free safe fix applied successfully";
                   setToast({ message, type: "success" });
                   setLastSuccessNotice(
                     `${message}. View the result in history below.`,
