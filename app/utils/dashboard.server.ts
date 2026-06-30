@@ -18,6 +18,11 @@ import {
   type ImpactLevel,
 } from "./growth-automation.shared";
 import {
+  buildGrowthOpportunityQueue,
+  type GrowthOpportunity,
+  type GrowthOpportunityPlan,
+} from "./growthOpportunityQueue";
+import {
   getWeeklyInsight,
   listOptimizationHistory,
 } from "../services/optimization-history.server";
@@ -75,6 +80,7 @@ export type DashboardSnapshot = {
   avgSeoScore: number;
   avgOptimizationLift: number;
   topPriorityOpportunities: ProductScanResult[];
+  growthOpportunityQueue: GrowthOpportunity[];
   products: ProductScanResult[];
 };
 
@@ -88,10 +94,7 @@ export function calculateSeoScore(title: string, description: string) {
     .trim()
     .toLowerCase();
 
-  const titleWords = cleanTitle
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  const titleWords = cleanTitle.toLowerCase().split(/\s+/).filter(Boolean);
 
   const uniqueTitleWords = new Set(titleWords);
   const keywordCount = titleWords.length;
@@ -155,7 +158,9 @@ export function calculateSeoScore(title: string, description: string) {
   return Math.max(35, Math.min(Math.round(score), 90));
 }
 
-export function auditProduct(product: Omit<Product, "issues" | "fixes">): Product {
+export function auditProduct(
+  product: Omit<Product, "issues" | "fixes">,
+): Product {
   const issues: string[] = [];
   const fixes: string[] = [];
 
@@ -352,6 +357,7 @@ export function buildDashboardSnapshot(
     | "maxProductsPerRun"
   >,
   history: Array<{ scoreBefore: number; scoreAfter: number }>,
+  plan: GrowthOpportunityPlan = "free",
 ): DashboardSnapshot {
   const scannedProducts = products.map((product) => scanProduct(product, rule));
 
@@ -368,6 +374,12 @@ export function buildDashboardSnapshot(
 
       return a.seoScore - b.seoScore;
     });
+
+  const growthOpportunityQueue = buildGrowthOpportunityQueue(
+    scannedProducts,
+    plan,
+    rule.maxProductsPerRun,
+  );
 
   const revenueStats = buildRevenueStats(history);
 
@@ -400,6 +412,7 @@ export function buildDashboardSnapshot(
     avgSeoScore,
     avgOptimizationLift: revenueStats.avgImprovement,
     topPriorityOpportunities: sortedQueue.slice(0, rule.maxProductsPerRun),
+    growthOpportunityQueue,
     products: scannedProducts,
   };
 }
@@ -417,9 +430,24 @@ export async function getEnhancedDashboardData(
     | "prioritizeWeakDescription"
     | "maxProductsPerRun"
   >,
-  history: Array<{ scoreBefore: number; scoreAfter: number }>
+  history: Array<{
+    scoreBefore?: number | null;
+    scoreAfter?: number | null;
+    seoScoreBefore?: number | null;
+    seoScoreAfter?: number | null;
+  }>,
+  plan: GrowthOpportunityPlan = "free",
 ) {
-  const snapshot = buildDashboardSnapshot(products, rule, history);
+  const normalizedHistory = history.map((item) => ({
+    scoreBefore: item.scoreBefore ?? item.seoScoreBefore ?? 0,
+    scoreAfter: item.scoreAfter ?? item.seoScoreAfter ?? 0,
+  }));
+  const snapshot = buildDashboardSnapshot(
+    products,
+    rule,
+    normalizedHistory,
+    plan,
+  );
 
   const [weeklyInsight, optimizationHistory] = await Promise.all([
     getWeeklyInsight(shopDomain),
