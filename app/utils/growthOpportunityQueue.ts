@@ -4,14 +4,14 @@ import {
   type GrowthIssueCategory,
   type ProductGrowthProductInput,
 } from "./productGrowthClassifier";
+import {
+  getSafeFixDecision,
+  type FeedPilotActionDecision,
+} from "./safeFixPolicy";
 
 export type GrowthOpportunityPriority = "high" | "medium" | "low";
 
-export type GrowthOpportunityActionType =
-  | "apply_safe_fix"
-  | "review_suggestion"
-  | "monitor"
-  | "upgrade_required";
+export type GrowthOpportunityActionType = FeedPilotActionDecision;
 
 export type GrowthOpportunityPlan = "free" | "starter" | "growth";
 
@@ -128,23 +128,12 @@ function getWhyItMatters(issue: GrowthIssue) {
   }
 }
 
-function getActionType(
-  issue: GrowthIssue,
-  plan: GrowthOpportunityPlan,
-): GrowthOpportunityActionType {
-  if (plan === "free") return "upgrade_required";
-  if (issue.safeAutoFix) return "apply_safe_fix";
-  return "review_suggestion";
-}
-
 function getPlanRequired(
-  issue: GrowthIssue,
-  plan: GrowthOpportunityPlan,
+  actionDecision: FeedPilotActionDecision,
+  planRequired?: GrowthOpportunityPlan,
 ): GrowthOpportunityPlan | undefined {
-  if (plan === "free") return "starter";
-  if (plan === "starter" && issue.safeAutoFix) return "starter";
-  if (plan === "growth" && issue.safeAutoFix) return "growth";
-  return undefined;
+  if (actionDecision === "blocked_by_plan") return planRequired ?? "starter";
+  return planRequired;
 }
 
 function compareOpportunities(a: GrowthOpportunity, b: GrowthOpportunity) {
@@ -181,6 +170,7 @@ export function buildGrowthOpportunityQueue(
         completenessScore: scan.completenessScore,
       });
       const scoreImpact = SCORE_IMPACT_BY_PRIORITY[priority];
+      const decision = getSafeFixDecision(issue.code, { plan });
 
       return {
         id: `${productId}:${issue.code}`,
@@ -194,12 +184,15 @@ export function buildGrowthOpportunityQueue(
         explanation: issue.explanation,
         whyItMatters: getWhyItMatters(issue),
         recommendedAction:
-          plan === "growth" && issue.safeAutoFix
+          plan === "growth" && decision.safeAutoFix
             ? `${issue.recommendedAction} Growth can include this safe fix in weekly monitoring and automation reports.`
             : issue.recommendedAction,
-        actionType: getActionType(issue, plan),
-        safeAutoFix: Boolean(issue.safeAutoFix),
-        planRequired: getPlanRequired(issue, plan),
+        actionType: decision.actionDecision,
+        safeAutoFix: decision.safeAutoFix,
+        planRequired: getPlanRequired(
+          decision.actionDecision,
+          decision.planRequired,
+        ),
       } satisfies GrowthOpportunity;
     });
   });

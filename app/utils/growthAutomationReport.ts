@@ -4,6 +4,7 @@ import {
   type ProductGrowthProductInput,
   type ProductGrowthScanResult,
 } from "./productGrowthClassifier";
+import { canAutoApplyIssue } from "./safeFixPolicy";
 
 export type GrowthAutomationReportStatus =
   | "completed"
@@ -42,7 +43,9 @@ const SAFE_AUTO_FIX_FIELDS = new Set(["title", "description"]);
 
 export function isSafeGrowthAutomationIssue(issue: GrowthIssue) {
   return Boolean(
-    issue.safeAutoFix && issue.field && SAFE_AUTO_FIX_FIELDS.has(issue.field),
+    issue.field &&
+    SAFE_AUTO_FIX_FIELDS.has(issue.field) &&
+    canAutoApplyIssue(issue.code, "growth"),
   );
 }
 
