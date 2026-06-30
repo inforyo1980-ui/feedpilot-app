@@ -1321,8 +1321,7 @@ export default function Index() {
 
                       if (queue.length === 0) {
                         setEmptyRunMessage(
-                          `No critical safe-fix issue found in this scan.
-FeedPilot can continue monitoring for product data, SEO, and visibility readiness gaps.`,
+                          "No critical safe-fix issue found. Your applied-fix quota was not used.",
                         );
                         setManualScanResult({
                           resultType: "NO_CRITICAL_ISSUE_WITH_REPORT",
@@ -1330,9 +1329,9 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                           safeFixApplied: false,
                           growthReport: {
                             summary:
-                              "No critical safe-fix issue found in this scan.",
+                              "No critical safe-fix issue found. Your applied-fix quota was not used.",
                             recommendedAction:
-                              "FeedPilot can continue monitoring for product data, SEO, and visibility readiness gaps.",
+                              "Review the scan report and continue monitoring for product data, SEO, and visibility readiness gaps.",
                           },
                           product: null,
                         });
@@ -1373,9 +1372,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                               product,
                             );
                             setToast({
-                              message: growthReport?.upgradeRequired
-                                ? "Upgrade required to apply this recommendation. Scans and suggestions do not consume applied-fix quota."
-                                : "FeedPilot returned a report. Scans and suggestions do not consume applied-fix quota.",
+                              message:
+                                "Product growth gaps found. Review the top opportunity below. No applied-fix quota was used.",
                               type: "info",
                             });
                             setTimeout(
@@ -1389,7 +1387,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                             showManualGrowthReport(data, product);
                             setToast({
                               message:
-                                "FeedPilot returned a report. Scans and suggestions do not consume applied-fix quota.",
+                                "Product growth gaps found. Review the top opportunity below. No applied-fix quota was used.",
                               type: "info",
                             });
                             setTimeout(
