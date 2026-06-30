@@ -1405,8 +1405,13 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                           });
                           setStarterOptimized(true);
                           setLastSuccessNotice(
-                            "Safe fix applied. View the result in history below after refreshing.",
+                            "Safe fix applied. Refreshing quota and history now.",
                           );
+                          window.sessionStorage.setItem(
+                            "feedpilotLastSuccess",
+                            "Safe fix applied. Free applied safe fix quota and history were refreshed.",
+                          );
+                          setTimeout(() => window.location.reload(), 1200);
                         } else {
                           setToast({
                             message:
@@ -1595,8 +1600,9 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                           );
                           window.sessionStorage.setItem(
                             "feedpilotLastSuccess",
-                            `${message}. View the result in history below.`,
+                            `${message}. Quota and history were refreshed.`,
                           );
+                          setTimeout(() => window.location.reload(), 1200);
                         } else {
                           setToast({
                             message:
