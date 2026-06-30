@@ -1749,48 +1749,76 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             style={{
               padding: 16,
               borderRadius: 14,
-              background:
-                plan === "growth"
-                  ? "#f9fafb"
-                  : plan === "starter"
-                    ? STATUS_THEME.starter.softBg
-                    : "#f9fafb",
-              border: `1px solid ${
-                plan === "growth"
-                  ? "#e5e7eb"
-                  : plan === "starter"
-                    ? STATUS_THEME.starter.softBorder
-                    : "#e5e7eb"
-              }`,
+              background: "#fff",
+              border: "1px solid #e5e7eb",
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
               Weekly Monitoring
             </div>
 
-            <div
-              style={{
-                fontSize: 18,
-                color:
-                  plan === "growth"
-                    ? "#111"
-                    : plan === "starter"
-                      ? STATUS_THEME.starter.accent
-                      : "#6b7280",
-                fontWeight: 700,
-              }}
-            >
-              {plan === "growth"
-                ? "Active"
-                : plan === "starter"
-                  ? "Locked"
-                  : "Locked"}
-            </div>
-            {plan === "growth" && automationCount > 0 && (
-              <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
-                Improved {automationCount}{" "}
-                {pluralize(automationCount, "product", "products")} this week
-              </div>
+            {plan === "growth" ? (
+              <>
+                <div
+                  style={{
+                    fontSize: 18,
+                    color: "#111",
+                    fontWeight: 700,
+                  }}
+                >
+                  Active
+                </div>
+                {automationCount > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
+                    Improved {automationCount}{" "}
+                    {pluralize(automationCount, "product", "products")} this week
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color:
+                      plan === "starter"
+                        ? STATUS_THEME.starter.accent
+                        : "#6b7280",
+                    fontWeight: 800,
+                    marginBottom: 8,
+                  }}
+                >
+                  Locked on {plan === "starter" ? "Starter" : "Free"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#4b5563",
+                    lineHeight: 1.6,
+                    marginBottom: 12,
+                  }}
+                >
+                  Growth monitors your catalog every week, applies supported safe
+                  fixes when confidence is high, and records review-only
+                  suggestions when automation is risky.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => goToUpgrade("weekly_monitoring_teaser")}
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 800,
+                    fontSize: 13,
+                  }}
+                >
+                  Upgrade to Growth
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1960,31 +1988,25 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         style={{
           marginBottom: 22,
           padding: 18,
-          border:
-            plan === "growth"
-              ? "1px solid #e5e7eb"
-              : plan === "starter"
-                ? `1px solid ${STATUS_THEME.starter.softBorder}`
-                : "1px solid #ddd",
+          border: "1px solid #e5e7eb",
           borderRadius: 14,
-          background:
-            plan === "growth"
-              ? "#f3f4f6"
-              : plan === "starter"
-                ? STATUS_THEME.starter.softBg
-                : "#fff4f4",
+          background: "#fff",
         }}
       >
         <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
-          Safe AI Fixes
+          Safe Fix Policy
         </div>
 
         <div style={{ fontSize: 14, color: "#444", lineHeight: 1.7 }}>
-          {plan === "growth"
-            ? `FeedPilot applied ${appliedThisWeek} safe fixes this week and continues weekly monitoring.`
-            : plan === "starter"
-              ? "Starter keeps manual safe fixes available. Growth adds weekly monitoring and safe auto-fix history."
-              : "FeedPilot applies safe fixes when confidence is high. When a change needs merchant review, it creates a suggestion instead of publishing automatically."}
+          FeedPilot separates supported safe fixes from review-only suggestions,
+          so product data is not changed blindly.
+          {plan === "growth" && appliedThisWeek > 0
+            ? ` ${appliedThisWeek} supported safe ${pluralize(
+                appliedThisWeek,
+                "fix was",
+                "fixes were",
+              )} applied this week.`
+            : ""}
         </div>
       </div>
 
@@ -2424,98 +2446,6 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
           optimizationHistory={optimizationHistory}
         />
       </div>
-
-      {plan === "free" && (
-        <div
-          style={{
-            marginTop: 24,
-            borderRadius: 18,
-            padding: 22,
-            background: "linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.04)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              color: "#6b7280",
-              marginBottom: 6,
-              letterSpacing: "0.05em",
-            }}
-          >
-            STARTER
-          </div>
-
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#111827",
-              lineHeight: 1.3,
-            }}
-          >
-            Start with Starter, then scale into automation
-          </div>
-
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 14,
-              color: "#6b7280",
-              lineHeight: 1.6,
-              maxWidth: 720,
-            }}
-          >
-            Starter gives you manual product growth fixes with full issue
-            visibility. Upgrade to Growth when you want weekly monitoring, safe
-            auto-fix, and reports.
-          </div>
-
-          <div
-            style={{
-              marginTop: 14,
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={() => goToUpgrade("footer_free_card")}
-              style={{
-                padding: "12px 18px",
-                borderRadius: 10,
-                border: "none",
-                background: "#111827",
-                color: "#fff",
-                cursor: "pointer",
-                fontWeight: 800,
-                fontSize: 14,
-              }}
-            >
-              Upgrade to Starter ($9/mo)
-            </button>
-
-            <button
-              onClick={() => goToUpgrade("footer_growth_card")}
-              style={{
-                display: "inline-block",
-                padding: "12px 18px",
-                borderRadius: 10,
-                background: "#111",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Enable Weekly Monitoring ($19/mo)
-            </button>
-          </div>
-        </div>
-      )}
 
       {plan === "starter" && (
         <div
