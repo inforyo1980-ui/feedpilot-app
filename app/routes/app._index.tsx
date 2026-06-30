@@ -799,6 +799,23 @@ export default function Index() {
     data?.applied === true &&
     data?.recorded === true;
 
+  const showPreliminaryManualScanResult = (product: ProductScanResult) => {
+    setManualScanResult({
+      resultType: "SUGGESTION_ONLY",
+      usageConsumed: false,
+      safeFixApplied: false,
+      growthReport: {
+        resultType: "SUGGESTION_ONLY",
+        summary: "FeedPilot found a product growth gap for this product.",
+        recommendedAction:
+          "Review the issue signal and upgrade/apply supported safe fixes when ready.",
+        usageConsumed: false,
+      },
+      product,
+    });
+    setEmptyRunMessage("");
+  };
+
   const showManualGrowthReport = (
     data: any,
     product: ProductScanResult | null = null,
@@ -1351,6 +1368,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                       }
 
                       const product = queue[0];
+                      showPreliminaryManualScanResult(product);
                       setOptimizingId(product.id);
 
                       const formData = new FormData();
@@ -1545,6 +1563,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                       }
 
                       const product = queue[0];
+                      showPreliminaryManualScanResult(product);
                       setOptimizingId(product.id);
 
                       const formData = new FormData();
