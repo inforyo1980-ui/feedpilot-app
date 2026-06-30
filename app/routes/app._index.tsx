@@ -432,25 +432,6 @@ type ManualScanResult = {
 
 const SCAN_TOAST_DURATION_MS = 5600;
 
-function getResultTypeLabel(resultType?: string) {
-  if (resultType === "APPLIED") return "Safe fix applied";
-  if (resultType === "NO_CRITICAL_ISSUE_WITH_REPORT") {
-    return "No critical fix needed, monitoring recommended";
-  }
-  return "Review recommended";
-}
-
-function getScanResultTitle(resultType?: string) {
-  if (resultType === "APPLIED") return "Scan result: Safe fix applied";
-  if (resultType === "NO_CRITICAL_ISSUE_WITH_REPORT") {
-    return "Scan result: No critical safe-fix issue found";
-  }
-  if (resultType === "SUGGESTION_ONLY") {
-    return "Scan result: Product growth gaps found";
-  }
-  return "Scan result: Growth report created";
-}
-
 function getIssueSignal(product?: ProductScanResult | null) {
   if (!product) return "Catalog readiness gap detected";
 
@@ -522,7 +503,7 @@ function buildHeroSubtitleByPlan(plan: "free" | "starter" | "growth") {
   if (plan === "starter") {
     return "Manual product growth fixes are active. Weekly monitoring is available on Growth.";
   }
-  return "FeedPilot scans your Shopify catalog for SEO, visibility, and product data issues, then helps you safely fix the highest-impact opportunities with AI.";
+  return "FeedPilot scans your Shopify catalog for SEO, visibility, product data gaps, and catalog readiness signals, then separates supported safe fixes from review-only suggestions and weekly monitoring.";
 }
 
 function getImpactLevelTone(label: string) {
@@ -753,8 +734,7 @@ export default function Index() {
   const [starterOptimizing, setStarterOptimizing] = useState(false);
   const [starterOptimized, setStarterOptimized] = useState(false);
   const [emptyRunMessage, setEmptyRunMessage] = useState("");
-  const [manualScanResult, setManualScanResult] =
-    useState<ManualScanResult | null>(null);
+  const [, setManualScanResult] = useState<ManualScanResult | null>(null);
   const [growthAutoRunStatus, setGrowthAutoRunStatus] =
     useState<GrowthAutoRunStatus | null>(null);
   const [upgradeModal, setUpgradeModal] = useState<null | {
@@ -1004,12 +984,6 @@ export default function Index() {
     return snapshot.growthOpportunityQueue ?? [];
   }, [snapshot]);
 
-  const growthOpportunities = useMemo(() => {
-    return snapshot.topPriorityOpportunities
-      .filter((p) => p.primaryIssue === "softOpportunity" && p.seoScore < 92)
-      .slice(0, 3);
-  }, [snapshot]);
-
   const opportunityCount = useMemo(() => {
     return snapshot.opportunityCount;
   }, [snapshot]);
@@ -1021,6 +995,22 @@ export default function Index() {
   const healthyCount = useMemo(() => {
     return snapshot.healthyCount;
   }, [snapshot]);
+
+  const freeTopOpportunity = useMemo(() => {
+    return (
+      topOpportunities[0] ??
+      snapshot.topPriorityOpportunities[0] ??
+      snapshot.products.find(
+        (product: ProductScanResult) => product.optimizationReasons.length > 0,
+      ) ??
+      null
+    );
+  }, [snapshot.products, snapshot.topPriorityOpportunities, topOpportunities]);
+
+  const visibleQueueItems =
+    plan === "free"
+      ? growthOpportunityQueue.slice(0, 3)
+      : growthOpportunityQueue;
 
   const appliedThisWeek = weeklyInsight?.appliedCount ?? 0;
   const automationCount = weeklyInsight?.automatedCount ?? 0;
@@ -1225,7 +1215,7 @@ export default function Index() {
             fontWeight: 800,
           }}
         >
-          Find product growth gaps before they cost you traffic.
+          Find product growth gaps before they limit product visibility.
         </h1>
 
         <p
@@ -1281,9 +1271,9 @@ export default function Index() {
 
             <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
               {plan === "growth"
-                ? "Automation is active"
+                ? "Weekly monitoring is active"
                 : plan === "starter"
-                  ? "Manual growth fixes are active"
+                  ? "Review and apply manual safe fixes"
                   : "Scan product growth gaps"}
             </div>
 
@@ -1292,7 +1282,7 @@ export default function Index() {
                 ? "Weekly monitoring is active for SEO, visibility, and product data gaps."
                 : plan === "starter"
                   ? "Review product growth opportunities and safely apply supported fixes manually."
-                  : "FeedPilot scans your Shopify catalog for SEO, visibility, and product data issues, then helps you safely fix the highest-impact opportunities with AI."}
+                  : "Scan SEO, visibility, product data, and catalog readiness gaps before deciding what to fix or monitor."}
             </div>
             {plan !== "growth" && (
               <div
@@ -1819,11 +1809,25 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             lineHeight: 1.7,
           }}
         >
-          <b>{opportunityCount} growth opportunities detected.</b> Free plan
-          lets you discover gaps and apply {FREE_OPTIMIZATION_LIMIT} safe manual
-          fixes every {FREE_OPTIMIZATION_WINDOW_DAYS} days. The remaining
-          opportunities will stay unresolved unless you upgrade to unlock full
-          issue visibility, manual fixes, and weekly monitoring.
+          {opportunityCount > 0 ? (
+            <>
+              <b>Scan result: {opportunityCount} product growth gaps found.</b>{" "}
+              {freeTopOpportunity && (
+                <>
+                  Top issue: {getIssueSignal(freeTopOpportunity)} on{" "}
+                  {freeTopOpportunity.title}.{" "}
+                </>
+              )}
+              Free applied safe fix quota consumed: No. Upgrade to unlock full
+              issue visibility, manual safe fixes, and weekly monitoring.
+            </>
+          ) : (
+            <>
+              <b>Scan result: No critical safe-fix issue found today.</b>{" "}
+              FeedPilot can continue monitoring product data, SEO, and
+              visibility readiness gaps with Growth.
+            </>
+          )}
         </div>
       )}
 
@@ -1892,172 +1896,6 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
           }}
         >
           {emptyRunMessage}
-        </div>
-      )}
-
-      {manualScanResult && (
-        <div
-          style={{
-            marginBottom: 20,
-            padding: "18px 20px",
-            border: "1px solid #bfdbfe",
-            borderRadius: 16,
-            background: "#eff6ff",
-            color: "#1e3a8a",
-            boxShadow: "0 8px 20px rgba(30, 64, 175, 0.08)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 14,
-              flexWrap: "wrap",
-              alignItems: "flex-start",
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 6 }}>
-                {getScanResultTitle(manualScanResult.resultType)}
-              </div>
-              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                {manualScanResult.growthReport?.summary ||
-                  (manualScanResult.resultType ===
-                  "NO_CRITICAL_ISSUE_WITH_REPORT"
-                    ? "No critical safe-fix issue found in this scan."
-                    : "FeedPilot created a product growth report from this scan.")}
-              </div>
-            </div>
-            <div
-              style={{
-                padding: "6px 10px",
-                borderRadius: 999,
-                background: "#dbeafe",
-                border: "1px solid #93c5fd",
-                fontSize: 12,
-                fontWeight: 800,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {manualScanResult.resultType} ·{" "}
-              {getResultTypeLabel(manualScanResult.resultType)}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <MiniReportMetric
-              label="Safe fix applied"
-              value={manualScanResult.safeFixApplied ? "Yes" : "No"}
-            />
-            <MiniReportMetric
-              label="Free applied safe fix quota consumed"
-              value={manualScanResult.usageConsumed ? "Yes" : "No"}
-            />
-            <MiniReportMetric
-              label="Main product"
-              value={manualScanResult.product?.title || "Catalog scan"}
-            />
-            <MiniReportMetric
-              label="Issue signal"
-              value={getIssueSignal(manualScanResult.product)}
-            />
-          </div>
-
-          <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 8 }}>
-            <b>Why it matters:</b> {getWhyItMatters(manualScanResult.product)}
-          </div>
-          <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 8 }}>
-            <b>Recommended next step:</b>{" "}
-            {manualScanResult.growthReport?.recommendedAction ||
-              (manualScanResult.resultType === "NO_CRITICAL_ISSUE_WITH_REPORT"
-                ? "FeedPilot can continue monitoring for product data, SEO, and visibility readiness gaps."
-                : "Review the product growth gap and apply only supported safe fixes.")}
-          </div>
-          <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 14 }}>
-            Scans, suggestions, and healthy reports do not consume Free
-            applied-fix quota.
-          </div>
-
-          {plan === "free" && (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => goToUpgrade("scan_result_starter")}
-                style={{
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "#111",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 800,
-                }}
-              >
-                View Starter plan
-              </button>
-              <div
-                style={{ fontSize: 13, color: "#1e40af", alignSelf: "center" }}
-              >
-                Starter unlocks full issue visibility and more manual safe
-                fixes.
-              </div>
-              <button
-                type="button"
-                onClick={() => goToUpgrade("scan_result_growth")}
-                style={{
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #93c5fd",
-                  background: "#fff",
-                  color: "#1e3a8a",
-                  cursor: "pointer",
-                  fontWeight: 800,
-                }}
-              >
-                Use Growth for weekly monitoring
-              </button>
-              <div
-                style={{ fontSize: 13, color: "#1e40af", alignSelf: "center" }}
-              >
-                Growth monitors your catalog weekly and creates safe-fix
-                reports.
-              </div>
-            </div>
-          )}
-
-          {plan === "starter" && (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => goToUpgrade("scan_result_weekly_monitoring")}
-                style={{
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "#111",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 800,
-                }}
-              >
-                Enable Weekly Monitoring
-              </button>
-              <div
-                style={{ fontSize: 13, color: "#1e40af", alignSelf: "center" }}
-              >
-                Growth turns this manual review into weekly monitoring and
-                automation reports.
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -2341,7 +2179,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
           readiness, or buying-decision clarity.
         </p>
 
-        {growthOpportunityQueue.length === 0 ? (
+        {visibleQueueItems.length === 0 ? (
           <div
             style={{
               padding: 12,
@@ -2354,7 +2192,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             growth gaps.
           </div>
         ) : (
-          growthOpportunityQueue.map((item: GrowthOpportunity) => {
+          visibleQueueItems.map((item: GrowthOpportunity) => {
             const priorityStyle = getQueuePriorityStyle(item.priority);
             return (
               <div
@@ -2412,110 +2250,14 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             );
           })
         )}
-      </div>
-
-      <div
-        style={{
-          marginBottom: 22,
-          padding: 18,
-          border: "1px solid #ddd",
-          borderRadius: 14,
-          background: "#fff",
-        }}
-      >
-        <h2 style={{ marginTop: 0, marginBottom: 8 }}>Growth Opportunities</h2>
-
-        {growthOpportunities.length === 0 ? (
-          <div
-            style={{
-              padding: 12,
-              background: "#fafafa",
-              borderRadius: 8,
-              color: "#666",
-            }}
-          >
-            No growth opportunities found.
-          </div>
-        ) : (
-          growthOpportunities.map((product, index) =>
-            renderCompactOpportunityCard(product, index, async (product) => {
-              if (plan === "free") {
-                openUpgradeModal(
-                  "Upgrade required to apply this product growth fix",
-                  "Free helps you find product growth gaps. Upgrade to Starter for manual safe fixes or Growth for weekly monitoring and safe auto-fix.",
-                  "Upgrade now",
-                  "single_optimize_free",
-                );
-                return;
-              }
-
-              if (plan === "starter") {
-                setToast({
-                  message: "Starter manual optimization in progress",
-                  type: "info",
-                });
-                setTimeout(() => setToast(null), 2200);
-              }
-
-              setOptimizingId(product.id);
-
-              const formData = new FormData();
-              formData.append("title", product.title);
-              formData.append("productId", product.id);
-              formData.append("description", product.descriptionHtml || "");
-
-              try {
-                const res = await fetch("?index", {
-                  method: "POST",
-                  body: formData,
-                });
-
-                const data = await res.json().catch(() => null);
-
-                if (res.ok && isReportOnlyResponse(data)) {
-                  const growthReport = showManualGrowthReport(data, product);
-                  setToast({
-                    message: growthReport?.upgradeRequired
-                      ? "Upgrade required to apply this recommendation. Applied safe fix quota consumed: No."
-                      : "FeedPilot prepared a growth report. Applied safe fix quota consumed: No.",
-                    type: "info",
-                  });
-                  setTimeout(() => setToast(null), SCAN_TOAST_DURATION_MS);
-                  return;
-                }
-
-                if (res.ok && isAppliedAndRecordedResponse(data)) {
-                  const message =
-                    plan === "growth"
-                      ? "Growth opportunity optimized successfully"
-                      : "Starter optimization completed successfully";
-                  setToast({ message, type: "success" });
-                  setLastSuccessNotice(
-                    `${message}. View the result in history below.`,
-                  );
-                  window.sessionStorage.setItem(
-                    "feedpilotLastSuccess",
-                    `${message}. View the result in history below.`,
-                  );
-                  setTimeout(() => window.location.reload(), 800);
-                } else {
-                  showManualGrowthReport(data);
-                  setToast({
-                    message: data?.error || "Optimization failed",
-                    type: "error",
-                  });
-                  setTimeout(() => setToast(null), 2000);
-                }
-              } catch (error) {
-                console.error(error);
-                setToast({ message: "Network error", type: "error" });
-                setTimeout(() => setToast(null), 2000);
-              } finally {
-                setOptimizingId("");
-              }
-            }),
-          )
-        )}
+        {plan === "free" &&
+          growthOpportunityQueue.length > visibleQueueItems.length && (
+            <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
+              Showing the top {visibleQueueItems.length} queue items. Upgrade
+              for full issue visibility, manual safe fixes, and weekly
+              monitoring.
+            </div>
+          )}
       </div>
 
       <div
