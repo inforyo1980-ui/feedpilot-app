@@ -1818,8 +1818,10 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                   {freeTopOpportunity.title}.{" "}
                 </>
               )}
-              Free applied safe fix quota consumed: No. Upgrade to unlock full
-              issue visibility, manual safe fixes, and weekly monitoring.
+              Scans, suggestions, and healthy reports do not consume quota.
+              Applied safe fixes consume quota only when FeedPilot safely
+              applies a fix. Upgrade to unlock full issue visibility, manual
+              safe fixes, and weekly monitoring.
             </>
           ) : (
             <>
@@ -1943,7 +1945,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         />
 
         <StatCard
-          label="Product SEO & Catalog Health"
+          label="Visibility Trend"
           value={
             allTimeRevenueStats.avgImprovement > 40
               ? "+40+"
@@ -2041,7 +2043,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             renderCompactOpportunityCard(product, index, async (product) => {
               if (plan === "free") {
                 openUpgradeModal(
-                  "This product is already losing visibility",
+                  "This product has a visibility readiness gap",
                   "FeedPilot found a weak listing that can be improved now. Free lets you discover the issue, but optimization requires a paid plan. Upgrade to Starter to fix it manually, or Growth to let FeedPilot keep improving products automatically.",
                   "Unlock optimization",
                   "single_optimize_free",
