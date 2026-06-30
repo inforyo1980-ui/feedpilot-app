@@ -301,11 +301,15 @@ function BottomCompareTable({ plan }: { plan: PlanType }) {
         </div>
       </div>
 
-      <FeatureRow label="Manual optimization" free="Limited" starter="Included" growth="Included" plan={plan} />
-      <FeatureRow label="Weekly automation" free="Not included" starter="Not included" growth="Included" plan={plan} />
-      <FeatureRow label="Background optimization" free="Not included" starter="Not included" growth="Included" plan={plan} />
-      <FeatureRow label="Catalog growth loop" free="Preview only" starter="Manual only" growth="Active" plan={plan} />
-      <FeatureRow label="Best fit" free="Evaluation" starter="Hands-on usage" growth="Ongoing automation" plan={plan} />
+      <FeatureRow label="Catalog scan" free="Included" starter="Included" growth="Included" plan={plan} />
+      <FeatureRow label="Issue visibility" free="Limited" starter="Full" growth="Full" plan={plan} />
+      <FeatureRow label="Manual applied fixes" free="2 every 7 days" starter="More capacity" growth="Included" plan={plan} />
+      <FeatureRow label="Safe suggestions" free="Included where possible" starter="Included" growth="Included" plan={plan} />
+      <FeatureRow label="Growth opportunity queue" free="Preview" starter="Included" growth="Included" plan={plan} />
+      <FeatureRow label="Fix history" free="Limited" starter="Included" growth="Included" plan={plan} />
+      <FeatureRow label="Weekly monitoring" free="Not included" starter="Not included" growth="Included" plan={plan} />
+      <FeatureRow label="Safe auto-fix" free="Not included" starter="Not included" growth="Included" plan={plan} />
+      <FeatureRow label="Automation report" free="Not included" starter="Not included" growth="Included" plan={plan} />
     </div>
   );
 }
@@ -401,11 +405,16 @@ export default function UpgradePage() {
       )}
 
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>Upgrade FeedPilot</h1>
+        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>
+          Choose how much of your product growth cleanup you want FeedPilot to handle.
+        </h1>
         <p style={{ fontSize: 16, color: "#666", margin: 0 }}>
-          {plan === "free" && "Choose the plan that fits how you want to optimize."}
-          {plan === "starter" && "Starter is active. Upgrade to Growth when you want weekly automation."}
-          {plan === "growth" && "Your Growth plan is active and automation is enabled."}
+          {plan === "free" &&
+            "Start by finding hidden product SEO, catalog, and feed readiness gaps. Upgrade when you want more fixes, full visibility, and weekly monitoring."}
+          {plan === "starter" &&
+            "Starter is active with manual product growth fixes. Upgrade to Growth when you want weekly monitoring, safe auto-fix, and reports."}
+          {plan === "growth" &&
+            "Your Growth plan is active with weekly monitoring, safe auto-fix, suggestions for review, and automation reports."}
         </p>
       </div>
 
@@ -414,38 +423,64 @@ export default function UpgradePage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
               gap: 20,
               marginBottom: 24,
             }}
           >
             <PlanCard
-              title="Starter"
+              title="Discover hidden product gaps"
+              price="$0"
+              badge="Current"
+              tone="free"
+              descriptionLines={[
+                "Scan your catalog and see where products may be missing visibility, search, or catalog readiness signals.",
+                "Scan your Shopify catalog for product growth gaps",
+                "Limited visibility into SEO, catalog, and feed readiness issues",
+                "2 applied manual fixes every 7 days",
+                "Safe suggestions without consuming fix quota where possible",
+                "No weekly automation",
+              ]}
+              buttonLabel="Start Free Scan"
+              onClick={() => navigate("/app")}
+              disabled={loadingPlan !== null}
+            />
+
+            <PlanCard
+              title="Fix product growth gaps faster"
               price="$9"
               tone="starter"
               highlight
               descriptionLines={[
-                "Manual optimization access",
-                "Basic workflow for paid usage",
-                "Best first paid step before automation",
+                "See all issues, apply manual product growth fixes, and keep a history of improvements.",
+                "Full issue visibility",
+                "Manual product growth fixes",
+                "More applied fix capacity",
+                "Product SEO and catalog completeness insights",
+                "Safe AI suggestions for review",
+                "Fix history / evidence of improvements",
               ]}
-              buttonLabel={loadingPlan === "starter" ? "Redirecting..." : "Start with $9"}
+              buttonLabel={loadingPlan === "starter" ? "Redirecting..." : "Upgrade to Starter"}
               onClick={() => handleUpgrade("starter")}
               disabled={loadingPlan !== null}
             />
 
             <PlanCard
-              title="Growth"
+              title="Let FeedPilot monitor your catalog weekly"
               price="$19"
               badge="Popular"
               tone="growth"
               highlight
               descriptionLines={[
-                "Weekly automatic optimization",
-                "Background scan and improvement loop",
-                "Continuous optimization without manual work",
+                "Weekly monitoring, safe auto-fix, suggestions waiting for review, and automation reports.",
+                "Weekly product growth monitoring",
+                "Growth opportunity queue",
+                "Safe auto-fix where confidence is high",
+                "Suggestions waiting for review where auto-fix is not safe",
+                "Automation history",
+                "Weekly report / proof of work",
               ]}
-              buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Start with $19"}
+              buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Upgrade to Growth"}
               onClick={() => handleUpgrade("growth")}
               disabled={loadingPlan !== null}
             />
@@ -461,19 +496,19 @@ export default function UpgradePage() {
           >
             <SectionCard title="How to choose" tone="free">
               <div>
-                Start with <b style={{ color: PLAN_THEME.starter.accent }}>Starter</b> if you want to begin paid usage with manual optimization and confirm product value first.
+                Start with <b style={{ color: PLAN_THEME.starter.accent }}>Starter</b> if you want full issue visibility, more applied manual fixes, and evidence of product growth cleanup.
               </div>
               <div style={{ marginTop: 10 }}>
-                Choose <b style={{ color: PLAN_THEME.growth.accent }}>Growth</b> if you already want FeedPilot to keep working in the background every week.
+                Choose <b style={{ color: PLAN_THEME.growth.accent }}>Growth</b> if you want FeedPilot to monitor your catalog weekly, safely fix approved issue types, and summarize the work.
               </div>
             </SectionCard>
 
             <SectionCard title="What changes after upgrade" tone="free">
               <div>
-                <b style={{ color: PLAN_THEME.starter.accent }}>Starter</b> unlocks paid manual optimization workflow.
+                <b style={{ color: PLAN_THEME.starter.accent }}>Starter</b> unlocks full issue visibility, manual product growth fixes, and fix history.
               </div>
               <div style={{ marginTop: 10 }}>
-                <b style={{ color: PLAN_THEME.growth.accent }}>Growth</b> adds automation, weekly optimization runs, and an ongoing catalog improvement loop.
+                <b style={{ color: PLAN_THEME.growth.accent }}>Growth</b> adds weekly monitoring, safe auto-fix, suggestions waiting for review, and automation reports.
               </div>
             </SectionCard>
           </div>
@@ -499,11 +534,15 @@ export default function UpgradePage() {
               tone="growth"
               highlight
               descriptionLines={[
-                "Weekly automatic optimization",
-                "Background scan and improvement loop",
-                "Continuous optimization without manual work",
+                "Weekly monitoring, safe auto-fix, suggestions waiting for review, and automation reports.",
+                "Weekly product growth monitoring",
+                "Growth opportunity queue",
+                "Safe auto-fix where confidence is high",
+                "Suggestions waiting for review where auto-fix is not safe",
+                "Automation history",
+                "Weekly report / proof of work",
               ]}
-              buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Upgrade to Growth $19"}
+              buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Upgrade to Growth"}
               onClick={() => handleUpgrade("growth")}
               disabled={loadingPlan !== null}
             />

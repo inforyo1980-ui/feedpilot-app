@@ -890,8 +890,8 @@ export default function Index() {
           ? "Free limit reached"
           : "Upgrade to optimize your catalog",
         freeLimitReached
-          ? "You've used your free optimization allowance. Upgrade to Starter to continue optimizing products, or move to Growth to automate ongoing improvements."
-          : "Free is for discovery. Upgrade to Starter to optimize more products, or choose Growth to turn optimization into an automatic weekly system.",
+          ? "You still have product growth issues waiting. Upgrade to Starter to see all issues and apply more fixes, or choose Growth for weekly monitoring and safe auto-fix."
+          : "Free helps you discover product growth gaps. Upgrade to Starter for full issue visibility and more manual fixes, or choose Growth for weekly monitoring and safe auto-fix.",
         freeLimitReached ? "Upgrade to Starter" : "See paid plans",
         "batch_limit",
       );
@@ -901,7 +901,7 @@ export default function Index() {
     if (plan === "starter") {
       openUpgradeModal(
         "Starter is manual only",
-        "You can still run manual optimizations, but automatic background optimization is locked to Growth. Upgrade to Growth to keep FeedPilot working every week without manual effort.",
+        "Upgrade to Growth so FeedPilot can monitor your catalog weekly and safely fix approved issue types for you.",
         "Upgrade to Growth",
         "starter_batch_to_growth",
       );
@@ -1277,7 +1277,7 @@ No immediate manual action needed right now.`);
                     {starterOptimizing
                       ? "Scanning..."
                       : freeLimitReached
-                        ? "Unlock Full Issue Visibility"
+                        ? "Upgrade to Starter"
                         : "Scan Products"}
                   </button>
 
@@ -2611,7 +2611,7 @@ No immediate manual action needed right now.`);
               width: 420,
             }}
           >
-            <h3>You have reached your free optimization limit</h3>
+            <h3>You still have product growth issues waiting</h3>
 
             <p style={{ marginTop: 12 }}>
               You have fixed your first visibility issues, but more products
@@ -2619,8 +2619,8 @@ No immediate manual action needed right now.`);
             </p>
 
             <p style={{ marginTop: 8 }}>
-              Free plan allows 2 optimizations every 7 days. Upgrade to continue
-              optimizing your catalog now.
+              Free includes 2 applied manual fixes every 7 days. Upgrade to
+              Starter to see all issues and apply more fixes.
             </p>
 
             <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
@@ -2634,7 +2634,7 @@ No immediate manual action needed right now.`);
                   border: "none",
                 }}
               >
-                Unlock Full Issue Visibility
+                Upgrade to Starter
               </button>
 
               <button
