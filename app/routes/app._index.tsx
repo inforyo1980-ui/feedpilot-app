@@ -24,6 +24,7 @@ import { applyOptimizedTitleAndRecord } from "../services/optimization-apply.ser
 import { OptimizationHistoryPanel } from "../components/OptimizationHistoryPanel";
 import { StatCard } from "../components/StatCard";
 import { optimizeProductWithAI } from "../services/optimizer.server";
+import type { GrowthOpportunity } from "../utils/growthOpportunityQueue";
 const FREE_OPTIMIZATION_LIMIT = 2;
 const FREE_OPTIMIZATION_WINDOW_DAYS = 7;
 
@@ -247,6 +248,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     rawProducts,
     growthRule,
     allTimeHistory,
+    plan,
   );
 
   return Response.json({
@@ -862,6 +864,10 @@ export default function Index() {
     return [...critical.slice(0, 1), ...highImpact.slice(0, 2)];
   }, [snapshot]);
 
+  const growthOpportunityQueue = useMemo(() => {
+    return snapshot.growthOpportunityQueue ?? [];
+  }, [snapshot]);
+
   const growthOpportunities = useMemo(() => {
     return snapshot.topPriorityOpportunities
       .filter((p) => p.primaryIssue === "softOpportunity" && p.seoScore < 92)
@@ -909,6 +915,23 @@ export default function Index() {
     }
 
     await runGrowthAutoRun("manual");
+  };
+
+  const getQueueActionLabel = (actionType: string) => {
+    if (actionType === "apply_safe_fix") return "Apply Safe Fix";
+    if (actionType === "review_suggestion") return "Review Suggestion";
+    if (actionType === "monitor") return "Monitor";
+    return "Upgrade to Act";
+  };
+
+  const getQueuePriorityStyle = (priority: string) => {
+    if (priority === "high") {
+      return { background: "#fff1f0", border: "#ffa39e", color: "#a8071a" };
+    }
+    if (priority === "medium") {
+      return { background: "#fff7e6", border: "#ffd591", color: "#ad6800" };
+    }
+    return { background: "#f6ffed", border: "#b7eb8f", color: "#237804" };
   };
 
   const renderCompactOpportunityCard = (
@@ -1966,6 +1989,96 @@ No immediate manual action needed right now.`);
           </button>
         </div>
       )}
+
+      <div
+        style={{
+          marginBottom: 22,
+          padding: 18,
+          border: "1px solid #ddd",
+          borderRadius: 14,
+          background: "#fff",
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 8 }}>
+          Growth Opportunity Queue
+        </h2>
+        <p style={{ color: "#666", marginTop: 0 }}>
+          Prioritized product issues that may affect visibility, catalog
+          readiness, or buying-decision clarity.
+        </p>
+
+        {growthOpportunityQueue.length === 0 ? (
+          <div
+            style={{
+              padding: 12,
+              background: "#fafafa",
+              borderRadius: 8,
+              color: "#666",
+            }}
+          >
+            No priority queue items found. Keep monitoring for new product
+            growth gaps.
+          </div>
+        ) : (
+          growthOpportunityQueue.map((item: GrowthOpportunity) => {
+            const priorityStyle = getQueuePriorityStyle(item.priority);
+            return (
+              <div
+                key={item.id}
+                style={{
+                  padding: "14px 0",
+                  borderBottom: "1px solid #eee",
+                }}
+              >
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      alignSelf: "flex-start",
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      border: `1px solid ${priorityStyle.border}`,
+                      background: priorityStyle.background,
+                      color: priorityStyle.color,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {item.priority}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 260 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                      {item.productTitle}
+                    </div>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                      {item.title}
+                    </div>
+                    <div style={{ color: "#555", marginBottom: 8 }}>
+                      <b>Why it matters:</b> {item.whyItMatters}
+                    </div>
+                    <div style={{ color: "#0f766e", marginBottom: 8 }}>
+                      <b>Recommended action:</b> {item.recommendedAction}
+                    </div>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        padding: "5px 10px",
+                        borderRadius: 8,
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      {getQueueActionLabel(item.actionType)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       <div
         style={{
