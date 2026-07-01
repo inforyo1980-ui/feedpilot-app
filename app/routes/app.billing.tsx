@@ -4,6 +4,14 @@ import { authenticate, STARTER_PLAN, GROWTH_PLAN } from "../shopify.server";
 
 const BILLING_TEST_MODE = true;
 
+type BillingRequester = {
+  request: (input: {
+    plan: string;
+    isTest: boolean;
+    returnUrl: string;
+  }) => Promise<{ confirmationUrl: string }>;
+};
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   return redirect("/app/upgrade");
@@ -25,18 +33,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return Response.json({ error: "invalid_plan" }, { status: 400 });
   }
 
- const appUrl = process.env.SHOPIFY_APP_URL;
+  const appUrl = process.env.SHOPIFY_APP_URL;
 
-if (!appUrl) {
-  throw new Error("SHOPIFY_APP_URL is not set");
-}
+  if (!appUrl) {
+    throw new Error("SHOPIFY_APP_URL is not set");
+  }
 
-const returnUrl = `${appUrl}/app/upgrade?billing=success`;
-  const response = await billing.request({
+  const returnUrl = `${appUrl}/app/upgrade?billing=success`;
+  const response = await (billing as BillingRequester).request({
     plan,
     isTest: BILLING_TEST_MODE,
     returnUrl,
   });
 
-  return redirect(response.confirmationUrl);
+  return Response.json({ url: response.confirmationUrl });
 };

@@ -334,7 +334,7 @@ export default function UpgradePage() {
     if (!billingSuccess) return;
 
     const timer = window.setTimeout(() => {
-      navigate("/app");
+      navigate("/app?billing=success");
     }, 1200);
 
     return () => window.clearTimeout(timer);
