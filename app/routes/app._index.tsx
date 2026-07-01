@@ -769,6 +769,8 @@ export default function Index() {
     primaryLabel: string;
     reason: string;
   }>(null);
+  const [selectedPreviewItem, setSelectedPreviewItem] =
+    useState<GrowthOpportunity | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const openUpgradeModal = (
     title: string,
@@ -786,6 +788,14 @@ export default function Index() {
 
   const closeUpgradeModal = () => {
     setUpgradeModal(null);
+  };
+
+  const openFreePreview = (item: GrowthOpportunity) => {
+    setSelectedPreviewItem(item);
+  };
+
+  const closeFreePreview = () => {
+    setSelectedPreviewItem(null);
   };
 
   const buildMainOptimizePostUrl = () => {
@@ -2317,19 +2327,38 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                         </>
                       )}
                     </div>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        padding: "5px 10px",
-                        borderRadius: 8,
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      {getQueueActionLabel(item.actionType)}
-                    </span>
+                    {plan === "free" ? (
+                      <button
+                        type="button"
+                        onClick={() => openFreePreview(item)}
+                        style={{
+                          display: "inline-flex",
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {getQueueActionLabel(item.actionType)}
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {getQueueActionLabel(item.actionType)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2340,8 +2369,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
           growthOpportunityQueue.length > visibleQueueItems.length && (
             <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
               Showing the top {visibleQueueItems.length} queue previews. Upgrade
-              for full recommendations, full issue visibility, more manual fixes,
-              and weekly monitoring.
+              for full recommendations, full issue visibility, more manual
+              fixes, and weekly monitoring.
             </div>
           )}
       </div>
@@ -2720,6 +2749,86 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         </div>
       )}
 
+      {selectedPreviewItem && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              background: "#fff",
+              borderRadius: 18,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Review preview</div>
+
+            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+              <div>
+                <b>Product:</b> {selectedPreviewItem.productTitle}
+              </div>
+              <div>
+                <b>Issue:</b> {selectedPreviewItem.title}
+              </div>
+              <div>
+                <b>Why it matters:</b> {selectedPreviewItem.whyItMatters}
+              </div>
+              <div style={{ color: "#0f766e" }}>
+                <b>Recommendation preview:</b>{" "}
+                {getLimitedRecommendationPreview(selectedPreviewItem)}
+              </div>
+              <div style={{ color: "#6b7280" }}>
+                Free shows limited previews. Upgrade to Starter for the full
+                recommendation and more manual fixes.
+              </div>
+            </div>
+
+            <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                onClick={closeFreePreview}
+                style={{
+                  padding: "10px 16px",
+                  background: "#fff",
+                  color: "#374151",
+                  borderRadius: 8,
+                  border: "1px solid #d1d5db",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => goToUpgrade("free_preview")}
+                style={{
+                  padding: "10px 16px",
+                  background: "#111",
+                  color: "#fff",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                View paid plans
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {upgradeModal && (
         <div
           style={{
