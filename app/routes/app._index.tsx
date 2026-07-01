@@ -1066,6 +1066,13 @@ export default function Index() {
     onOptimize: (product: any) => void | Promise<void>,
   ) => {
     const isCritical = product?.severity === "critical";
+    const actionLabel =
+      plan === "free"
+        ? "Try safe fix"
+        : plan === "starter"
+          ? "Apply manual fix"
+          : "Review Opportunity";
+    const loadingLabel = plan === "free" ? "Checking..." : "Reviewing...";
 
     return (
       <div
@@ -1142,9 +1149,7 @@ export default function Index() {
             }}
             onClick={() => onOptimize(product)}
           >
-            {optimizingId === product.id
-              ? "Reviewing..."
-              : "Review Opportunity"}
+            {optimizingId === product.id ? loadingLabel : actionLabel}
           </button>
         </div>
       </div>
@@ -1769,7 +1774,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                 {automationCount > 0 && (
                   <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
                     Improved {automationCount}{" "}
-                    {pluralize(automationCount, "product", "products")} this week
+                    {pluralize(automationCount, "product", "products")} this
+                    week
                   </div>
                 )}
               </>
@@ -1796,8 +1802,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                     marginBottom: 12,
                   }}
                 >
-                  Growth monitors your catalog every week, applies supported safe
-                  fixes when confidence is high, and records review-only
+                  Growth monitors your catalog every week, applies supported
+                  safe fixes when confidence is high, and records review-only
                   suggestions when automation is risky.
                 </div>
                 <button
@@ -2061,12 +2067,12 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         ) : (
           topOpportunities.map((product, index) =>
             renderCompactOpportunityCard(product, index, async (product) => {
-              if (plan === "free") {
+              if (plan === "free" && freeLimitReached) {
                 openUpgradeModal(
-                  "This product has a visibility readiness gap",
-                  "FeedPilot found a weak listing that can be improved now. Free lets you discover the issue, but optimization requires a paid plan. Upgrade to Starter to fix it manually, or Growth to let FeedPilot keep improving products automatically.",
-                  "Unlock optimization",
-                  "single_optimize_free",
+                  "Free safe fixes used",
+                  "You have used your 2 free safe fixes for this 7-day period. Upgrade to Starter to apply more manual fixes, or Growth for weekly monitoring.",
+                  "Upgrade to Starter",
+                  "free_safe_fixes_used",
                 );
                 return;
               }
@@ -2095,11 +2101,14 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                 const data = await res.json().catch(() => null);
 
                 if (res.ok && isReportOnlyResponse(data)) {
-                  const growthReport = showManualGrowthReport(data, product);
+                  showManualGrowthReport(data, product);
                   setToast({
-                    message: growthReport?.upgradeRequired
-                      ? "Upgrade required to apply this recommendation. No safe fix was applied."
-                      : "FeedPilot returned a report. No safe fix was applied.",
+                    message:
+                      plan === "free"
+                        ? "FeedPilot created a suggestion. No product was changed, so your free safe-fix quota was not used."
+                        : data?.growthReport?.upgradeRequired
+                          ? "Upgrade required to apply this recommendation. No safe fix was applied."
+                          : "FeedPilot returned a report. No safe fix was applied.",
                     type: "info",
                   });
                   setTimeout(() => setToast(null), SCAN_TOAST_DURATION_MS);
@@ -2107,23 +2116,28 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                 }
 
                 if (res.ok && isAppliedAndRecordedResponse(data)) {
+                  showManualGrowthReport(data, product);
                   const message =
                     plan === "growth"
                       ? "Priority product optimized successfully"
-                      : "Starter optimization completed successfully";
+                      : plan === "free"
+                        ? "Free safe fix applied successfully. Free applied safe fix quota consumed: Yes."
+                        : "Starter optimization completed successfully";
                   setToast({ message, type: "success" });
                   setLastSuccessNotice(
                     `${message}. View the result in history below.`,
                   );
                   window.sessionStorage.setItem(
                     "feedpilotLastSuccess",
-                    `${message}. View the result in history below.`,
+                    plan === "free"
+                      ? "Safe fix applied. Free applied safe fix quota and history were refreshed."
+                      : `${message}. View the result in history below.`,
                   );
                   setTimeout(() => {
                     window.location.reload();
                   }, 800);
                 } else {
-                  showManualGrowthReport(data);
+                  showManualGrowthReport(data, product);
                   setToast({
                     message: data?.error || "Optimization failed",
                     type: "error",
