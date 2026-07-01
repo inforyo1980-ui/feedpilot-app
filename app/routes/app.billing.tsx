@@ -2,7 +2,22 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { authenticate, STARTER_PLAN, GROWTH_PLAN } from "../shopify.server";
 
-const BILLING_TEST_MODE = true;
+// Dev/test stores can set SHOPIFY_BILLING_TEST_MODE=true. Production defaults
+// to real billing and rejects explicit test mode to avoid test charges.
+function isBillingTestMode() {
+  const explicit = process.env.SHOPIFY_BILLING_TEST_MODE;
+
+  if (process.env.NODE_ENV === "production" && explicit === "true") {
+    throw new Error(
+      "SHOPIFY_BILLING_TEST_MODE=true is not allowed in production.",
+    );
+  }
+
+  if (explicit === "true") return true;
+  if (explicit === "false") return false;
+
+  return process.env.NODE_ENV !== "production";
+}
 
 type BillingRequester = {
   request: (input: {
@@ -40,9 +55,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const returnUrl = `${appUrl}/app/upgrade?billing=success`;
-  const response = await (billing as BillingRequester).request({
+  const response = await (billing as unknown as BillingRequester).request({
     plan,
-    isTest: BILLING_TEST_MODE,
+    isTest: isBillingTestMode(),
     returnUrl,
   });
 
