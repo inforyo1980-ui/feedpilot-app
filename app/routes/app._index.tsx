@@ -2092,10 +2092,17 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
               formData.append("productId", product.id);
               formData.append("description", product.descriptionHtml || "");
 
+              const controller = new AbortController();
+              const timeoutId = window.setTimeout(
+                () => controller.abort(),
+                30000,
+              );
+
               try {
-                const res = await fetch("?index", {
+                const res = await fetch(buildMainOptimizePostUrl(), {
                   method: "POST",
                   body: formData,
+                  signal: controller.signal,
                 });
 
                 const data = await res.json().catch(() => null);
@@ -2146,9 +2153,16 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                 }
               } catch (error) {
                 console.error(error);
-                setToast({ message: "Network error", type: "error" });
+                setToast({
+                  message:
+                    error instanceof DOMException && error.name === "AbortError"
+                      ? "Optimization timed out. Please try again."
+                      : "Optimization failed. Please try again.",
+                  type: "error",
+                });
                 setTimeout(() => setToast(null), 2000);
               } finally {
+                window.clearTimeout(timeoutId);
                 setOptimizingId("");
               }
             }),
