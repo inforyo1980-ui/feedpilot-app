@@ -28,6 +28,32 @@ import type { GrowthOpportunity } from "../utils/growthOpportunityQueue";
 const FREE_OPTIMIZATION_LIMIT = 2;
 const FREE_OPTIMIZATION_WINDOW_DAYS = 7;
 
+function getLimitedRecommendationPreview(item: GrowthOpportunity) {
+  const signalText = `${item.title} ${item.recommendedAction}`.toLowerCase();
+
+  if (signalText.includes("image") || signalText.includes("feed")) {
+    return "Review image and feed readiness.";
+  }
+
+  if (signalText.includes("product type")) {
+    return "Review product type readiness.";
+  }
+
+  if (signalText.includes("vendor")) {
+    return "Review vendor readiness.";
+  }
+
+  if (signalText.includes("description")) {
+    return "Review product description quality.";
+  }
+
+  if (signalText.includes("title")) {
+    return "Review product title clarity.";
+  }
+
+  return "Review this product data signal.";
+}
+
 const STATUS_THEME = {
   free: {
     accent: "#6b7280",
@@ -1044,8 +1070,9 @@ export default function Index() {
   };
 
   const getQueueActionLabel = (actionType: string) => {
+    if (plan === "free") return "Review preview";
     if (actionType === "apply_safe_fix") return "Apply Safe Fix";
-    if (actionType === "review_suggestion") return "Review Suggestion";
+    if (actionType === "review_suggestion") return "Review full suggestion";
     if (actionType === "monitor") return "Monitor";
     return "Upgrade to Act";
   };
@@ -2279,7 +2306,16 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
                       <b>Why it matters:</b> {item.whyItMatters}
                     </div>
                     <div style={{ color: "#0f766e", marginBottom: 8 }}>
-                      <b>Recommended action:</b> {item.recommendedAction}
+                      {plan === "free" ? (
+                        <>
+                          <b>Recommendation preview:</b>{" "}
+                          {getLimitedRecommendationPreview(item)}
+                        </>
+                      ) : (
+                        <>
+                          <b>Recommended action:</b> {item.recommendedAction}
+                        </>
+                      )}
                     </div>
                     <span
                       style={{
@@ -2303,9 +2339,9 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
         {plan === "free" &&
           growthOpportunityQueue.length > visibleQueueItems.length && (
             <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
-              Showing the top {visibleQueueItems.length} queue items. Upgrade
-              for full issue visibility, manual safe fixes, and weekly
-              monitoring.
+              Showing the top {visibleQueueItems.length} queue previews. Upgrade
+              for full recommendations, full issue visibility, more manual fixes,
+              and weekly monitoring.
             </div>
           )}
       </div>
