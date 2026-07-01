@@ -2772,25 +2772,24 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
               boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Review preview</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Limited recommendation</div>
 
             <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
               <div>
                 <b>Product:</b> {selectedPreviewItem.productTitle}
               </div>
               <div>
-                <b>Issue:</b> {selectedPreviewItem.title}
+                <b>Detected issue:</b> {selectedPreviewItem.title}
               </div>
               <div>
                 <b>Why it matters:</b> {selectedPreviewItem.whyItMatters}
               </div>
               <div style={{ color: "#0f766e" }}>
-                <b>Recommendation preview:</b>{" "}
+                <b>Preview insight:</b>{" "}
                 {getLimitedRecommendationPreview(selectedPreviewItem)}
               </div>
               <div style={{ color: "#6b7280" }}>
-                Free shows limited previews. Upgrade to Starter for the full
-                recommendation and more manual fixes.
+                Upgrade to Starter to unlock the full recommendation and more manual fixes.
               </div>
             </div>
 
