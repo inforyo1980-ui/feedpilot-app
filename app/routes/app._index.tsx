@@ -2107,7 +2107,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
               if (plan === "free" && freeLimitReached) {
                 openUpgradeModal(
                   "Free safe fixes used",
-                  "You have used your 2 free safe fixes for this 7-day period. Upgrade to Starter to apply more manual fixes, or Growth for weekly monitoring.",
+                  "Free includes 2 safe fixes every 7 days, and your current free window is used. Upgrade to Starter for more manual fixes, or upgrade to Growth for weekly monitoring and automation.",
                   "Upgrade to Starter",
                   "free_safe_fixes_used",
                 );
@@ -2369,8 +2369,8 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
           growthOpportunityQueue.length > visibleQueueItems.length && (
             <div style={{ marginTop: 12, fontSize: 13, color: "#6b7280" }}>
               Showing the top {visibleQueueItems.length} queue previews. Upgrade
-              for full recommendations, full issue visibility, more manual
-              fixes, and weekly monitoring.
+              to Starter for full recommendations and full issue visibility.
+              Upgrade to Growth for weekly monitoring.
             </div>
           )}
       </div>
@@ -2421,7 +2421,7 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             if (plan === "free") {
               openUpgradeModal(
                 "Upgrade required to optimize all priority products",
-                "Free helps you discover weak listings, but optimizing multiple products is a paid workflow. Upgrade to Starter for manual optimization or Growth for automatic ongoing optimization.",
+                "Free helps you discover weak listings, but optimizing multiple products is a paid workflow. Upgrade to Starter for more manual fixes and full recommendations, or upgrade to Growth for weekly monitoring and automation.",
                 "Upgrade now",
                 "batch_unlock",
               );
@@ -2911,8 +2911,9 @@ FeedPilot can continue monitoring for product data, SEO, and visibility readines
             </p>
 
             <p style={{ marginTop: 8 }}>
-              Free includes 2 applied manual fixes every 7 days. Upgrade to
-              Starter to see all issues and apply more fixes.
+              Free includes 2 safe fixes every 7 days, and the current free
+              window is used. Upgrade to Starter for more manual fixes, or
+              upgrade to Growth for weekly monitoring and automation.
             </p>
 
             <div style={{ marginTop: 20, display: "flex", gap: 12 }}>

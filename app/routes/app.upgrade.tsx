@@ -452,10 +452,10 @@ export default function UpgradePage() {
               tone="starter"
               highlight
               descriptionLines={[
-                "See all issues, apply manual product growth fixes, and keep a history of improvements.",
+                "Unlock full recommendations, more manual fixes, and full issue visibility for hands-on product growth cleanup.",
+                "Full recommendations",
+                "More manual fixes",
                 "Full issue visibility",
-                "Manual product growth fixes",
-                "More applied fix capacity",
                 "Product SEO and catalog completeness insights",
                 "Safe AI suggestions for review",
                 "Fix history / evidence of improvements",
@@ -472,13 +472,13 @@ export default function UpgradePage() {
               tone="growth"
               highlight
               descriptionLines={[
-                "Weekly monitoring, safe auto-fix, suggestions waiting for review, and automation reports.",
-                "Weekly product growth monitoring",
-                "Growth opportunity queue",
-                "Safe auto-fix where confidence is high",
+                "Weekly monitoring, automation, safe ongoing fixes, and history/reporting for product growth work.",
+                "Weekly monitoring",
+                "Automation",
+                "Safe ongoing fixes",
                 "Suggestions waiting for review where auto-fix is not safe",
                 "Automation history",
-                "Weekly report / proof of work",
+                "History and reporting",
               ]}
               buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Upgrade to Growth"}
               onClick={() => handleUpgrade("growth")}
@@ -534,13 +534,13 @@ export default function UpgradePage() {
               tone="growth"
               highlight
               descriptionLines={[
-                "Weekly monitoring, safe auto-fix, suggestions waiting for review, and automation reports.",
-                "Weekly product growth monitoring",
-                "Growth opportunity queue",
-                "Safe auto-fix where confidence is high",
+                "Weekly monitoring, automation, safe ongoing fixes, and history/reporting for product growth work.",
+                "Weekly monitoring",
+                "Automation",
+                "Safe ongoing fixes",
                 "Suggestions waiting for review where auto-fix is not safe",
                 "Automation history",
-                "Weekly report / proof of work",
+                "History and reporting",
               ]}
               buttonLabel={loadingPlan === "growth" ? "Redirecting..." : "Upgrade to Growth"}
               onClick={() => handleUpgrade("growth")}
