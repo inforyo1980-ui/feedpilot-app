@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { authenticate, STARTER_PLAN, GROWTH_PLAN } from "../shopify.server";
+import { buildBillingReturnContextCookie } from "../utils/billing-return-context.server";
 
 // Dev/test stores can set SHOPIFY_BILLING_TEST_MODE=true. Production defaults
 // to real billing and rejects explicit test mode to avoid test charges.
@@ -63,11 +64,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (host) {
     returnUrl.searchParams.set("host", host);
   }
+  const billingReturnContextCookie = buildBillingReturnContextCookie({
+    shop: session.shop,
+    returnTo: "/app?billing=success",
+    billingSuccessIntent: true,
+    ...(host ? { host } : {}),
+  });
+
   const response = await (billing as unknown as BillingRequester).request({
     plan,
     isTest: isBillingTestMode(),
     returnUrl: returnUrl.toString(),
   });
 
-  return Response.json({ url: response.confirmationUrl });
+  return Response.json(
+    { url: response.confirmationUrl },
+    {
+      headers: {
+        "Set-Cookie": billingReturnContextCookie,
+      },
+    },
+  );
 };
