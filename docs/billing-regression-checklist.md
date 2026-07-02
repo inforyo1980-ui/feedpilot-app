@@ -119,8 +119,10 @@ For each run, record:
 - Dev store Growth test billing: PASS
 - Starter plan detection after approval: PASS
 - Growth plan detection after approval: PASS
+- PR #43 Starter retest: FAIL for return-to-embedded-app UX.
 - Return-to-embedded-app UX: FAIL / NEEDS FIX
-- Notes: "After approval, the browser landed on standalone `/auth/login` and required manual shop-domain login. After re-entry, paid plan detection worked."
+- Notes: "After Starter test charge approval, the app still landed on standalone `/auth/login` with an empty Shop domain field. Billing/test charge worked, but auth fallback lost shop context."
+- Previous notes: "After approval, the browser landed on standalone `/auth/login` and required manual shop-domain login. After re-entry, paid plan detection worked."
 
 ## Run log
 

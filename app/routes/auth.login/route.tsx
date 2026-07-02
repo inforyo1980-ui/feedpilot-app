@@ -7,9 +7,10 @@ import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const url = new URL(request.url);
   const errors = loginErrorMessage(await login(request));
 
-  return { errors };
+  return { errors, shop: url.searchParams.get("shop") || "" };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -23,7 +24,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function Auth() {
   const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const [shop, setShop] = useState("");
+  const [shop, setShop] = useState(loaderData.shop);
   const { errors } = actionData || loaderData;
 
   return (
