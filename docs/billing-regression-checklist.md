@@ -113,6 +113,15 @@ For each run, record:
 - [ ] Whether **Plan activated** toast appeared.
 - [ ] Whether paid permissions changed correctly.
 
+## Latest manual regression results
+
+- Dev store Starter test billing: PASS
+- Dev store Growth test billing: PASS
+- Starter plan detection after approval: PASS
+- Growth plan detection after approval: PASS
+- Return-to-embedded-app UX: FAIL / NEEDS FIX
+- Notes: "After approval, the browser landed on standalone `/auth/login` and required manual shop-domain login. After re-entry, paid plan detection worked."
+
 ## Run log
 
 Use this table to capture each manual regression pass.

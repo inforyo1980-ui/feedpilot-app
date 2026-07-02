@@ -33,7 +33,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
+  const { billing, session } = await authenticate.admin(request);
 
   const formData = await request.formData();
   const selectedPlan = String(formData.get("plan") || "").trim();
@@ -54,11 +54,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Error("SHOPIFY_APP_URL is not set");
   }
 
-  const returnUrl = `${appUrl}/app/upgrade?billing=success`;
+  const returnUrl = new URL("/app/upgrade", appUrl);
+  returnUrl.searchParams.set("billing", "success");
+  returnUrl.searchParams.set("shop", session.shop);
   const response = await (billing as unknown as BillingRequester).request({
     plan,
     isTest: isBillingTestMode(),
-    returnUrl,
+    returnUrl: returnUrl.toString(),
   });
 
   return Response.json({ url: response.confirmationUrl });
