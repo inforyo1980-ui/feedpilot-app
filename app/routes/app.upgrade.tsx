@@ -2,16 +2,22 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useEffect, useState } from "react";
 import { redirect, useLoaderData, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
+import {
+  clearBillingReturnContextCookie,
+  getBillingReturnContext,
+} from "../utils/billing-return-context.server";
 import { getPlanWithDevOverride } from "../utils/plan.server";
 
 function getBillingAuthFallbackRedirect(request: Request) {
   const url = new URL(request.url);
-  const shop = url.searchParams.get("shop")?.trim();
+  const billingReturnContext = getBillingReturnContext(request);
+  const shop =
+    url.searchParams.get("shop")?.trim() || billingReturnContext?.shop || "";
+  const host = url.searchParams.get("host") || billingReturnContext?.host || "";
 
   if (
     url.searchParams.get("billing") !== "success" ||
     !shop ||
-    url.searchParams.has("host") ||
     url.searchParams.get("embedded") === "1" ||
     url.searchParams.has("id_token")
   ) {
@@ -20,7 +26,14 @@ function getBillingAuthFallbackRedirect(request: Request) {
 
   const loginUrl = new URL("/auth/login", url.origin);
   loginUrl.searchParams.set("shop", shop);
-  loginUrl.searchParams.set("returnTo", "/app?billing=success");
+  loginUrl.searchParams.set(
+    "returnTo",
+    billingReturnContext?.returnTo || "/app?billing=success",
+  );
+
+  if (host) {
+    loginUrl.searchParams.set("host", host);
+  }
 
   return loginUrl.pathname + loginUrl.search;
 }
@@ -29,7 +42,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authFallbackRedirect = getBillingAuthFallbackRedirect(request);
 
   if (authFallbackRedirect) {
-    throw redirect(authFallbackRedirect);
+    throw redirect(authFallbackRedirect, {
+      headers: {
+        "Set-Cookie": clearBillingReturnContextCookie(),
+      },
+    });
   }
 
   const { billing, session } = await authenticate.admin(request);

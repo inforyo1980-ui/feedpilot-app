@@ -120,6 +120,9 @@ For each run, record:
 - Starter plan detection after approval: PASS
 - Growth plan detection after approval: PASS
 - PR #43 Starter retest: FAIL for return-to-embedded-app UX.
+- PR #45 Starter retest: FAIL.
+- PR #45 retest details: After Starter test charge approval, the app still landed on standalone `/auth/login` with no query params and an empty Shop domain field.
+- Next fix: persist billing return context before Shopify approval.
 - Return-to-embedded-app UX: FAIL / NEEDS FIX
 - Notes: "After Starter test charge approval, the app still landed on standalone `/auth/login` with an empty Shop domain field. Billing/test charge worked, but auth fallback lost shop context."
 - Previous notes: "After approval, the browser landed on standalone `/auth/login` and required manual shop-domain login. After re-entry, paid plan detection worked."
