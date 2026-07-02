@@ -54,9 +54,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Error("SHOPIFY_APP_URL is not set");
   }
 
+  const currentUrl = new URL(request.url);
   const returnUrl = new URL("/app/upgrade", appUrl);
   returnUrl.searchParams.set("billing", "success");
   returnUrl.searchParams.set("shop", session.shop);
+
+  const host = currentUrl.searchParams.get("host");
+  if (host) {
+    returnUrl.searchParams.set("host", host);
+  }
   const response = await (billing as unknown as BillingRequester).request({
     plan,
     isTest: isBillingTestMode(),
