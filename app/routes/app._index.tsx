@@ -1351,8 +1351,13 @@ export default function Index() {
                 <>
                   <button
                     type="button"
-                    disabled={starterOptimizing}
+                    disabled={starterOptimizing && !freeLimitReached}
                     onClick={async () => {
+                      if (freeLimitReached) {
+                        goToUpgrade("free_dashboard_primary_starter");
+                        return;
+                      }
+
                       setStarterOptimizing(true);
                       setStarterOptimized(false);
 
@@ -1409,10 +1414,7 @@ export default function Index() {
 
                         if (res.ok) {
                           if (isReportOnlyResponse(data)) {
-                            const growthReport = showManualGrowthReport(
-                              data,
-                              product,
-                            );
+                            showManualGrowthReport(data, product);
                             setToast({
                               message:
                                 "Product growth gaps found. Review the top opportunity below. No applied-fix quota was used.",
@@ -1500,16 +1502,19 @@ export default function Index() {
                       border: "none",
                       background: "#111",
                       color: "#fff",
-                      cursor: starterOptimizing ? "not-allowed" : "pointer",
+                      cursor:
+                        starterOptimizing && !freeLimitReached
+                          ? "not-allowed"
+                          : "pointer",
                       fontWeight: 800,
                       fontSize: 15,
-                      opacity: starterOptimizing ? 0.7 : 1,
+                      opacity: starterOptimizing && !freeLimitReached ? 0.7 : 1,
                     }}
                   >
-                    {starterOptimizing
-                      ? "Scanning..."
-                      : freeLimitReached
-                        ? "Upgrade to Starter"
+                    {freeLimitReached
+                      ? "Upgrade to Starter"
+                      : starterOptimizing
+                        ? "Scanning..."
                         : "Scan Products"}
                   </button>
 
